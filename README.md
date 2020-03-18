@@ -1,5 +1,4 @@
-swh-py-template
-===============
+swh-web-client
+==============
 
-Python module template, used as skeleton to create new modules.
-
+Client for Software Heritage Web applications, via their APIs.

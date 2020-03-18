@@ -1,9 +1,9 @@
-.. _swh-py-template:
+.. _swh-web-client:
 
-Software Heritage - Python module template
-==========================================
+Software Heritage - Web client
+==============================
 
-Python module template, used as skeleton to create new modules.
+Client for Software Heritage Web applications, via their APIs.
 
 
 .. toctree::
