@@ -39,13 +39,13 @@ def parse_requirements(name=None):
 # Full sample:
 #   https://forge.softwareheritage.org/diffusion/DCORE/browse/master/setup.py
 setup(
-    name='swh.<module-name>',  # example: swh.loader.pypi
-    description='Software Heritage <Module\'s intent>',
+    name='swh.web.client',  # example: swh.loader.pypi
+    description='Software Heritage Web client',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='Software Heritage developers',
     author_email='swh-devel@inria.fr',
-    url='https://forge.softwareheritage.org/diffusion/<module-git-code>',
+    url='https://forge.softwareheritage.org/source/swh-web-client/',
     packages=find_packages(),  # packages's modules
     install_requires=parse_requirements() + parse_requirements('swh'),
     tests_require=parse_requirements('test'),
@@ -53,10 +53,6 @@ setup(
     extras_require={'testing': parse_requirements('test')},
     vcversioner={},
     include_package_data=True,
-    entry_points='''
-        [swh.cli.subcommands]
-        <cli-name>=swh.<module>.cli:cli
-    ''',
     classifiers=[
         "Programming Language :: Python :: 3",
         "Intended Audience :: Developers",
@@ -67,6 +63,6 @@ setup(
     project_urls={
         'Bug Reports': 'https://forge.softwareheritage.org/maniphest',
         'Funding': 'https://www.softwareheritage.org/donate',
-        'Source': 'https://forge.softwareheritage.org/source/swh-<module>',
+        'Source': 'https://forge.softwareheritage.org/source/swh-web-client',
     },
 )
