@@ -65,4 +65,8 @@ setup(
         'Funding': 'https://www.softwareheritage.org/donate',
         'Source': 'https://forge.softwareheritage.org/source/swh-web-client',
     },
+    entry_points='''
+        [swh.cli.subcommands]
+        auth=swh.web.client.cli:auth
+    ''',
 )
