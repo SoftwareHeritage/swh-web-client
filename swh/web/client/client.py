@@ -44,7 +44,7 @@ PIDish = Union[PID, str]
 
 
 def _get_pid(pidish: PIDish) -> PID:
-    """parse string to PID if needed"""
+    """Parse string to PID if needed"""
     if isinstance(pidish, str):
         return parse_pid(pidish)
     else:
@@ -52,9 +52,9 @@ def _get_pid(pidish: PIDish) -> PID:
 
 
 def typify(data: Any, obj_type: str) -> Any:
-    """type API responses using pythonic types where appropriate
+    """Type API responses using pythonic types where appropriate
 
-    the following conversions are performed:
+    The following conversions are performed:
 
     - identifiers are converted from strings to PersistentId instances
     - timestamps are converted from strings to datetime.datetime objects
@@ -109,16 +109,16 @@ def typify(data: Any, obj_type: str) -> Any:
 
 
 class WebAPIClient:
-    """client for the Software Heritage archive Web API, see
+    """Client for the Software Heritage archive Web API, see
 
     https://archive.softwareheritage.org/api/
 
     """
 
     def __init__(self, api_url='https://archive.softwareheritage.org/api/1'):
-        """create a client for the Software Heritage Web API
+        """Create a client for the Software Heritage Web API
 
-        see: https://archive.softwareheritage.org/api/
+        See: https://archive.softwareheritage.org/api/
 
         Args:
             api_url: base URL for API calls (default:
@@ -141,7 +141,7 @@ class WebAPIClient:
 
     def _call(self, query: str, http_method: str = 'get',
               **req_args) -> requests.models.Response:
-        """dispatcher for archive API invocation
+        """Dispatcher for archive API invocation
 
         Args:
             query: API method to be invoked, rooted at api_url
@@ -170,7 +170,7 @@ class WebAPIClient:
         return r
 
     def _get_snapshot(self, pid: PIDish) -> Dict[str, Any]:
-        """analogous to self.snapshot(), but zipping through partial snapshots,
+        """Analogous to self.snapshot(), but zipping through partial snapshots,
         merging them together before returning
 
         """
@@ -181,14 +181,14 @@ class WebAPIClient:
         return snapshot
 
     def get(self, pid: PIDish, **req_args) -> Any:
-        """retrieve information about an object of any kind
+        """Retrieve information about an object of any kind
 
-        dispatcher method over the more specific methods content(),
+        Dispatcher method over the more specific methods content(),
         directory(), etc.
 
-        note that this method will buffer the entire output in case of long,
+        Note that this method will buffer the entire output in case of long,
         iterable output (e.g., for snapshot()), see the iter() method for
-        streaming
+        streaming.
 
         """
 
@@ -197,9 +197,9 @@ class WebAPIClient:
 
     def iter(self, pid: PIDish, **req_args) -> Generator[Dict[str, Any],
                                                          None, None]:
-        """stream over the information about an object of any kind
+        """Stream over the information about an object of any kind
 
-        streaming variant of get()
+        Streaming variant of get()
 
         """
         pid_ = _get_pid(pid)
@@ -218,7 +218,7 @@ class WebAPIClient:
             raise ValueError(f'invalid object type: {obj_type}')
 
     def content(self, pid: PIDish, **req_args) -> Dict[str, Any]:
-        """retrieve information about a content object
+        """Retrieve information about a content object
 
         Args:
             pid: object identifier
@@ -234,7 +234,7 @@ class WebAPIClient:
             CONTENT)
 
     def directory(self, pid: PIDish, **req_args) -> List[Dict[str, Any]]:
-        """retrieve information about a directory object
+        """Retrieve information about a directory object
 
         Args:
             pid: object identifier
@@ -250,7 +250,7 @@ class WebAPIClient:
             DIRECTORY)
 
     def revision(self, pid: PIDish, **req_args) -> Dict[str, Any]:
-        """retrieve information about a revision object
+        """Retrieve information about a revision object
 
         Args:
             pid: object identifier
@@ -266,7 +266,7 @@ class WebAPIClient:
             REVISION)
 
     def release(self, pid: PIDish, **req_args) -> Dict[str, Any]:
-        """retrieve information about a release object
+        """Retrieve information about a release object
 
         Args:
             pid: object identifier
@@ -283,7 +283,7 @@ class WebAPIClient:
 
     def snapshot(self, pid: PIDish,
                  **req_args) -> Generator[Dict[str, Any], None, None]:
-        """retrieve information about a snapshot object
+        """Retrieve information about a snapshot object
 
         Args:
             pid: object identifier
@@ -311,7 +311,7 @@ class WebAPIClient:
                 done = True
 
     def content_exists(self, pid: PIDish, **req_args) -> bool:
-        """check if a content object exists in the archive
+        """Check if a content object exists in the archive
 
         Args:
             pid: object identifier
@@ -325,7 +325,7 @@ class WebAPIClient:
                                http_method='head', **req_args))
 
     def directory_exists(self, pid: PIDish, **req_args) -> bool:
-        """check if a directory object exists in the archive
+        """Check if a directory object exists in the archive
 
         Args:
             pid: object identifier
@@ -339,7 +339,7 @@ class WebAPIClient:
                                http_method='head', **req_args))
 
     def revision_exists(self, pid: PIDish, **req_args) -> bool:
-        """check if a revision object exists in the archive
+        """Check if a revision object exists in the archive
 
         Args:
             pid: object identifier
@@ -353,7 +353,7 @@ class WebAPIClient:
                                http_method='head', **req_args))
 
     def release_exists(self, pid: PIDish, **req_args) -> bool:
-        """check if a release object exists in the archive
+        """Check if a release object exists in the archive
 
         Args:
             pid: object identifier
@@ -367,7 +367,7 @@ class WebAPIClient:
                                http_method='head', **req_args))
 
     def snapshot_exists(self, pid: PIDish, **req_args) -> bool:
-        """check if a snapshot object exists in the archive
+        """Check if a snapshot object exists in the archive
 
         Args:
             pid: object identifier
@@ -382,7 +382,7 @@ class WebAPIClient:
 
     def content_raw(self, pid: PIDish,
                     **req_args) -> Generator[bytes, None, None]:
-        """iterate over the raw content of a content object
+        """Iterate over the raw content of a content object
 
         Args:
             pid: object identifier
