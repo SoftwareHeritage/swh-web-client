@@ -131,6 +131,14 @@ class WebAPIClient:
         self.api_url = api_url
         self.api_path = u.path
 
+        self._getters: Dict[str, Callable[[PIDish], Any]] = {
+            CONTENT: self.content,
+            DIRECTORY: self.directory,
+            RELEASE: self.release,
+            REVISION: self.revision,
+            SNAPSHOT: self._get_snapshot,
+        }
+
     def _call(self, query: str, http_method: str = 'get',
               **req_args) -> requests.models.Response:
         """dispatcher for archive API invocation
@@ -161,6 +169,17 @@ class WebAPIClient:
 
         return r
 
+    def _get_snapshot(self, pid: PIDish) -> Dict[str, Any]:
+        """analogous to self.snapshot(), but zipping through partial snapshots,
+        merging them together before returning
+
+        """
+        snapshot = {}
+        for snp in self.snapshot(pid):
+            snapshot.update(snp)
+
+        return snapshot
+
     def get(self, pid: PIDish, **req_args) -> Any:
         """retrieve information about an object of any kind
 
@@ -173,21 +192,8 @@ class WebAPIClient:
 
         """
 
-        def _get_snapshot(pid: PIDish):
-            snapshot = {}
-            for snp in self.snapshot(pid):
-                snapshot.update(snp)
-            return snapshot
-
         pid_ = _get_pid(pid)
-        getters: Dict[str, Callable[[PIDish], Any]] = {
-            CONTENT: self.content,
-            DIRECTORY: self.directory,
-            RELEASE: self.release,
-            REVISION: self.revision,
-            SNAPSHOT: _get_snapshot,
-        }
-        return getters[pid_.object_type](pid_)
+        return self._getters[pid_.object_type](pid_)
 
     def iter(self, pid: PIDish, **req_args) -> Generator[Dict[str, Any],
                                                          None, None]:
