@@ -19,6 +19,8 @@ def test_get_content(web_api_client, web_api_mock):
     assert obj["checksums"]["sha1"] == \
         "dc2830a9e72f23c1dfebef4413003221baa5fb62"
 
+    assert obj == web_api_client.content(pid)
+
 
 def test_get_directory(web_api_client, web_api_mock):
     pid = parse_pid("swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6")
@@ -32,6 +34,8 @@ def test_get_directory(web_api_client, web_api_mock):
         "swh:1:cnt:58471109208922c9ee8c4b06135725f03ed16814")
     assert dir_entry["name"] == ".bzrignore"
     assert dir_entry["length"] == 582
+
+    assert obj == web_api_client.directory(pid)
 
 
 def test_get_release(web_api_client, web_api_mock):
@@ -47,6 +51,8 @@ def test_get_release(web_api_client, web_api_mock):
     assert obj["target"] == parse_pid(
         "swh:1:rev:e005cb773c769436709ca6a1d625dc784dbc1636")
     assert not obj["synthetic"]
+
+    assert obj == web_api_client.release(pid)
 
 
 def test_get_revision(web_api_client, web_api_mock):
@@ -68,6 +74,8 @@ def test_get_revision(web_api_client, web_api_mock):
         "swh:1:rev:26307d261279861c2d9c9eca3bb38519f951bea4")
     assert obj["parents"][1]["id"] == parse_pid(
         "swh:1:rev:37fc9e08d0c4b71807a4f1ecb06112e78d91c283")
+
+    assert obj == web_api_client.revision(pid)
 
 
 def test_get_snapshot(web_api_client, web_api_mock):
