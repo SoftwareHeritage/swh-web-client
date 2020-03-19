@@ -20,7 +20,6 @@ def web_api_mock(requests_mock):
                 "Link":
                 f"<{API_URL}/{api_call}?branches_count=1000&branches_from=refs/tags/v3.0-rc7>; rel=\"next\""  # NoQA: E501
             }
-            print("XXX", headers)
         requests_mock.get(f"{API_URL}/{api_call}", text=data, headers=headers)
 
 
