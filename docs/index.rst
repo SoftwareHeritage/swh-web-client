@@ -2,6 +2,8 @@
 
 .. include:: README.rst
 
+.. _swh-web-client-auth:
+
 Authentication
 --------------
 
@@ -80,6 +82,21 @@ again.
 
   $ swh auth refresh $REFRESH_TOKEN
   "......."
+
+Note that if you intend to use the :class:`swh.web.client.client.WebAPIClient`
+class, the access token renewal will be automatically handled if you call
+method :meth:`swh.web.client.client.WebAPIClient.authenticate` prior to
+sending any requests. To activate authentication, use the following code snippet::
+
+  from swh.web.client import WebAPIClient
+
+  REFRESH_TOKEN = '.......'  # Use "swh auth login" command to get it
+
+  client = WebAPIClient()
+  client.authenticate(REFRESH_TOKEN)
+
+  # All requests to the Web API will be authenticated
+  resp = client.get('swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6')
 
 It is also possible to ``logout`` from the authenticated OpenID Connect session
 which invalidates all previously emitted tokens.

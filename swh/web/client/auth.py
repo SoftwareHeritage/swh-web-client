@@ -13,6 +13,15 @@ SWH_REALM_NAME = 'SoftwareHeritage'
 SWH_WEB_CLIENT_ID = 'swh-web'
 
 
+class AuthenticationError(Exception):
+    """Authentication related error.
+
+    Example: A bearer token has expired.
+
+    """
+    pass
+
+
 class OpenIDConnectSession:
     """
     Simple class wrapping requests sent to an OpenID Connect server.

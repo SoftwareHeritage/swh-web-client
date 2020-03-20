@@ -3,9 +3,17 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from copy import copy
+from datetime import datetime
 from dateutil.parser import parse as parse_date
+from unittest.mock import call, Mock
 
+import pytest
+
+from swh.web.client.auth import AuthenticationError
 from swh.model.identifiers import parse_persistent_identifier as parse_pid
+
+from .test_cli import oidc_profile
 
 
 def test_get_content(web_api_client, web_api_mock):
@@ -102,3 +110,92 @@ def test_iter_snapshot(web_api_client, web_api_mock):
         snp.update(partial)
 
     assert len(snp) == 1391
+
+
+def test_authenticate_success(web_api_client, web_api_mock):
+
+    rel_id = 'b9db10d00835e9a43e2eebef2db1d04d4ae82342'
+    url = f'{web_api_client.api_url}/release/{rel_id}/'
+
+    web_api_client.oidc_session = Mock()
+    web_api_client.oidc_session.refresh.return_value = copy(oidc_profile)
+
+    access_token = oidc_profile['access_token']
+    refresh_token = 'user-refresh-token'
+
+    web_api_client.authenticate(refresh_token)
+
+    assert 'expires_at' in web_api_client.oidc_profile
+
+    pid = parse_pid(f'swh:1:rel:{rel_id}')
+    web_api_client.get(pid)
+
+    web_api_client.oidc_session.refresh.assert_called_once_with(refresh_token)
+
+    sent_request = web_api_mock._adapter.last_request
+
+    assert sent_request.url == url
+    assert 'Authorization' in sent_request.headers
+
+    assert sent_request.headers['Authorization'] == f'Bearer {access_token}'
+
+
+def test_authenticate_refresh_token(web_api_client, web_api_mock):
+
+    rel_id = 'b9db10d00835e9a43e2eebef2db1d04d4ae82342'
+    url = f'{web_api_client.api_url}/release/{rel_id}/'
+
+    oidc_profile_cp = copy(oidc_profile)
+
+    web_api_client.oidc_session = Mock()
+    web_api_client.oidc_session.refresh.return_value = oidc_profile_cp
+
+    refresh_token = 'user-refresh-token'
+    web_api_client.authenticate(refresh_token)
+
+    assert 'expires_at' in web_api_client.oidc_profile
+
+    # simulate access token expiration
+    web_api_client.oidc_profile['expires_at'] = datetime.now()
+
+    access_token = 'new-access-token'
+    oidc_profile_cp['access_token'] = access_token
+
+    pid = parse_pid(f'swh:1:rel:{rel_id}')
+    web_api_client.get(pid)
+
+    calls = [call(refresh_token), call(oidc_profile['refresh_token'])]
+    web_api_client.oidc_session.refresh.assert_has_calls(calls)
+
+    sent_request = web_api_mock._adapter.last_request
+
+    assert sent_request.url == url
+    assert 'Authorization' in sent_request.headers
+
+    assert sent_request.headers['Authorization'] == f'Bearer {access_token}'
+
+
+def test_authenticate_failure(web_api_client, web_api_mock):
+    msg = 'Authentication error'
+    web_api_client.oidc_session = Mock()
+    web_api_client.oidc_session.refresh.side_effect = Exception(msg)
+
+    refresh_token = 'user-refresh-token'
+
+    with pytest.raises(AuthenticationError) as e:
+        web_api_client.authenticate(refresh_token)
+
+    assert e.match(msg)
+
+    oidc_error_response = {
+        'error': 'invalid_grant',
+        'error_description': 'Invalid refresh token',
+    }
+
+    web_api_client.oidc_session.refresh.side_effect = None
+    web_api_client.oidc_session.refresh.return_value = oidc_error_response
+
+    with pytest.raises(AuthenticationError) as e:
+        web_api_client.authenticate(refresh_token)
+
+    assert e.match(repr(oidc_error_response))

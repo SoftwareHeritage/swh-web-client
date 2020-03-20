@@ -15,12 +15,13 @@ def web_api_mock(requests_mock):
         headers = {}
         if api_call == "snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/":
             # monkey patch the only URL that require a special response headers
-            # (to make the client insit and follow pagination)
+            # (to make the client init and follow pagination)
             headers = {
                 "Link":
                 f"<{API_URL}/{api_call}?branches_count=1000&branches_from=refs/tags/v3.0-rc7>; rel=\"next\""  # NoQA: E501
             }
         requests_mock.get(f"{API_URL}/{api_call}", text=data, headers=headers)
+    return requests_mock
 
 
 @pytest.fixture

@@ -28,7 +28,8 @@ conversions and pagination.
 
 """
 
-from typing import Any, Callable, Dict, Generator, List, Union
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, Generator, List, Optional, Union
 from urllib.parse import urlparse
 
 import dateutil.parser
@@ -39,6 +40,9 @@ from swh.model.identifiers import \
 from swh.model.identifiers import PersistentId as PID
 from swh.model.identifiers import parse_persistent_identifier as parse_pid
 
+from .auth import (
+    AuthenticationError, OpenIDConnectSession, SWH_OIDC_SERVER_URL
+)
 
 PIDish = Union[PID, str]
 
@@ -115,7 +119,8 @@ class WebAPIClient:
 
     """
 
-    def __init__(self, api_url='https://archive.softwareheritage.org/api/1'):
+    def __init__(self, api_url='https://archive.softwareheritage.org/api/1',
+                 auth_url=SWH_OIDC_SERVER_URL):
         """Create a client for the Software Heritage Web API
 
         See: https://archive.softwareheritage.org/api/
@@ -130,6 +135,8 @@ class WebAPIClient:
 
         self.api_url = api_url
         self.api_path = u.path
+        self.oidc_session = OpenIDConnectSession(oidc_server_url=auth_url)
+        self.oidc_profile: Optional[Dict[str, Any]] = None
 
         self._getters: Dict[str, Callable[[PIDish], Any]] = {
             CONTENT: self.content,
@@ -159,11 +166,20 @@ class WebAPIClient:
             url = '/'.join([self.api_url, query])
         r = None
 
+        headers = {}
+        if self.oidc_profile is not None:
+            # use bearer token authentication
+            if datetime.now() > self.oidc_profile['expires_at']:
+                # refresh access token if it has expired
+                self.authenticate(self.oidc_profile['refresh_token'])
+            access_token = self.oidc_profile['access_token']
+            headers = {'Authorization': f'Bearer {access_token}'}
+
         if http_method == 'get':
-            r = requests.get(url, **req_args)
+            r = requests.get(url, **req_args, headers=headers)
             r.raise_for_status()
         elif http_method == 'head':
-            r = requests.head(url, **req_args)
+            r = requests.head(url, **req_args, headers=headers)
         else:
             raise ValueError(f'unsupported HTTP method: {http_method}')
 
@@ -397,3 +413,29 @@ class WebAPIClient:
         r.raise_for_status()
 
         yield from r.iter_content(chunk_size=None, decode_unicode=False)
+
+    def authenticate(self, refresh_token: str):
+        """Authenticate API requests using OpenID Connect bearer token
+
+        Args:
+            refresh_token: A refresh token retrieved using the
+                ``swh auth login`` command (see :ref:`swh-web-client-auth`
+                section in main documentation)
+
+        Raises:
+            swh.web.client.auth.AuthenticationError: if authentication fails
+
+        """
+        now = datetime.now()
+        try:
+            self.oidc_profile = self.oidc_session.refresh(refresh_token)
+            assert self.oidc_profile
+            if 'expires_in' in self.oidc_profile:
+                expires_in = self.oidc_profile['expires_in']
+                expires_at = now + timedelta(seconds=expires_in)
+                self.oidc_profile['expires_at'] = expires_at
+        except Exception as e:
+            raise AuthenticationError(str(e))
+        if 'access_token' not in self.oidc_profile:
+            # JSON error response
+            raise AuthenticationError(self.oidc_profile)
