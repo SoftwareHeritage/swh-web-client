@@ -42,7 +42,7 @@ setup(
     name='swh.web.client',  # example: swh.loader.pypi
     description='Software Heritage Web client',
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type='text/x-rst',
     author='Software Heritage developers',
     author_email='swh-devel@inria.fr',
     url='https://forge.softwareheritage.org/source/swh-web-client/',
