@@ -43,6 +43,8 @@ from .auth import AuthenticationError, OpenIDConnectSession, SWH_OIDC_SERVER_URL
 
 PIDish = Union[PID, str]
 
+ORIGIN_VISIT = "origin_visit"
+
 
 def _get_pid(pidish: PIDish) -> PID:
     """Parse string to PID if needed"""
@@ -104,6 +106,10 @@ def typify(data: Any, obj_type: str) -> Any:
             )
     elif obj_type == CONTENT:
         pass  # nothing to do for contents
+    elif obj_type == ORIGIN_VISIT:
+        data['date'] = to_date(data['date'])
+        if data['snapshot'] is not None:
+            data['snapshot'] = to_pid(SNAPSHOT, data['snapshot'])
     else:
         raise ValueError(f"invalid object type: {obj_type}")
 
@@ -327,6 +333,46 @@ class WebAPIClient:
             yield typify(r.json()["branches"], SNAPSHOT)
             if "next" in r.links and "url" in r.links["next"]:
                 query = r.links["next"]["url"]
+            else:
+                done = True
+
+    def visits(self,
+               origin: str,
+               per_page: Optional[int] = None,
+               last_visit: Optional[int] = None,
+               **req_args) -> Generator[Dict[str, Any], None, None]:
+        """List visits of an origin
+
+        Args:
+            origin: the URL of a software origin
+            per_page: the number of visits to list
+            last_visit: visit to start listing from
+            req_args: extra keyword arguments for requests.get()
+
+        Returns:
+            an iterator over visits of the origin
+
+        Raises:
+            requests.HTTPError: if HTTP request fails
+
+        """
+        done = False
+        r = None
+
+        params = []
+        if last_visit is not None:
+            params.append(("last_visit", last_visit))
+        if per_page is not None:
+            params.append(("per_page", per_page))
+
+        query = f'origin/{origin}/visits/'
+
+        while not done:
+            r = self._call(query, http_method='get', params=params, **req_args)
+            yield from [typify(v, ORIGIN_VISIT) for v in r.json()]
+            if 'next' in r.links and 'url' in r.links['next']:
+                params = []
+                query = r.links['next']['url']
             else:
                 done = True
 

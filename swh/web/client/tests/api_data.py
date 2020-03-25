@@ -7511,4 +7511,214 @@ API_DATA = {
   "next_branch": null
 }
     """,  # NoQA: E501  # NoQA: E501
+    "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=50&per_page=10":  # NoQA: E501
+    r"""
+[
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 49,
+    "date": "2018-07-31T04:34:23.298931+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/49/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 48,
+    "date": "2018-07-27T10:12:23.069912+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/48/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 47,
+    "date": "2018-07-24T15:34:14.433021+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/47/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 46,
+    "date": "2018-07-23T22:07:33.025195+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/46/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 45,
+    "date": "2018-07-21T16:50:41.944584+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/45/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 44,
+    "date": "2018-07-21T12:17:24.044885+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/44/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 43,
+    "date": "2018-07-20T13:58:53.926748+00:00",
+    "type": "git",
+    "status": "full",
+    "snapshot": "c5d63cd27b09068b1f6913a90dfe44f1276091c2",
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/43/",
+    "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/c5d63cd27b09068b1f6913a90dfe44f1276091c2/"
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 42,
+    "date": "2018-07-20T00:38:20.356513+00:00",
+    "type": "git",
+    "status": "full",
+    "snapshot": "456550ea74af4e2eecaa406629efaaf0b9b5f976",
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/42/",
+    "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/456550ea74af4e2eecaa406629efaaf0b9b5f976/"
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 41,
+    "date": "2018-07-18T12:42:33.408489+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/41/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 40,
+    "date": "2018-07-17T16:40:42.302353+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/40/",
+    "snapshot_url": null
+  }
+]
+    """,  # NoQA: E501
+    "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10":  # NoQA: E501
+    r"""
+[
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 39,
+    "date": "2018-07-16T23:24:15.061318+00:00",
+    "type": "git",
+    "status": "full",
+    "snapshot": "1c2d51e9cda9958736394454ce8875e5913a1925",
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/39/",
+    "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/1c2d51e9cda9958736394454ce8875e5913a1925/"
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 38,
+    "date": "2018-07-16T10:43:14.651509+00:00",
+    "type": "git",
+    "status": "full",
+    "snapshot": "8fc8f205ba2d16a798b85467bd9f3cc6b938cc5c",
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/38/",
+    "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/8fc8f205ba2d16a798b85467bd9f3cc6b938cc5c/"
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 37,
+    "date": "2018-07-15T18:45:41.744499+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/37/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 36,
+    "date": "2018-07-15T10:41:05.001029+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/36/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 35,
+    "date": "2018-07-14T10:42:58.232545+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/35/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 34,
+    "date": "2018-07-14T05:31:45.565907+00:00",
+    "type": "git",
+    "status": "full",
+    "snapshot": "588fa42fefd27047474072da57ac2c83c3a481a7",
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/34/",
+    "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/588fa42fefd27047474072da57ac2c83c3a481a7/"
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 33,
+    "date": "2018-07-12T22:17:10.133596+00:00",
+    "type": "git",
+    "status": "full",
+    "snapshot": "9f9c7b2d52038b1d1fb6b1ff7387f0446c3f9da0",
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/33/",
+    "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/9f9c7b2d52038b1d1fb6b1ff7387f0446c3f9da0/"
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 32,
+    "date": "2018-07-12T14:45:54.291987+00:00",
+    "type": "git",
+    "status": "partial",
+    "snapshot": null,
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/32/",
+    "snapshot_url": null
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 31,
+    "date": "2018-07-11T18:30:43.843317+00:00",
+    "type": "git",
+    "status": "full",
+    "snapshot": "3d4c9c5c9a7de4d174b8a02d23bf4a55b2d3a911",
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/31/",
+    "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/3d4c9c5c9a7de4d174b8a02d23bf4a55b2d3a911/"
+  },
+  {
+    "origin": "https://github.com/NixOS/nixpkgs",
+    "visit": 30,
+    "date": "2018-07-10T07:37:24.991560+00:00",
+    "type": "git",
+    "status": "full",
+    "snapshot": "100de51846f317e6ab48da79d985cefa6fdefe42",
+    "origin_visit_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/visit/30/",
+    "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/100de51846f317e6ab48da79d985cefa6fdefe42/"
+  }
+]
+    """,  # NoQA: E501
 }

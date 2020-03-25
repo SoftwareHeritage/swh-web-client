@@ -205,3 +205,18 @@ def test_authenticate_failure(web_api_client, web_api_mock):
         web_api_client.authenticate(refresh_token)
 
     assert e.match(repr(oidc_error_response))
+
+
+def test_get_visits(web_api_client, web_api_mock):
+    obj = web_api_client.visits('https://github.com/NixOS/nixpkgs',
+                                last_visit=50,
+                                per_page=10)
+    visits = [v for v in obj]
+    assert len(visits) == 20
+
+    timestamp = parse_date('2018-07-31 04:34:23.298931+00:00')
+    assert visits[0]['date'] == timestamp
+
+    assert visits[0]["snapshot"] is None
+    snapshot_pid = 'swh:1:snp:456550ea74af4e2eecaa406629efaaf0b9b5f976'
+    assert visits[7]["snapshot"] == parse_pid(snapshot_pid)

@@ -18,6 +18,8 @@ urls="${urls} revision/aafb16d69fd30ff58afdd69036a26047f3aebdc6/"
 urls="${urls} snapshot/6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a/"
 urls="${urls} snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/"
 urls="${urls} snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/?branches_count=1000&branches_from=refs/tags/v3.0-rc7"
+urls="${urls} origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=50&per_page=10"
+urls="${urls} origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10"
 
 echo "# GENERATED FILE, DO NOT EDIT."
 echo "# Run './gen-api-data.sh > api_data.py' instead."
