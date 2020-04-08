@@ -8,9 +8,9 @@ from urllib.parse import urljoin
 
 import requests
 
-SWH_OIDC_SERVER_URL = 'https://auth.softwareheritage.org/auth/'
-SWH_REALM_NAME = 'SoftwareHeritage'
-SWH_WEB_CLIENT_ID = 'swh-web'
+SWH_OIDC_SERVER_URL = "https://auth.softwareheritage.org/auth/"
+SWH_REALM_NAME = "SoftwareHeritage"
+SWH_WEB_CLIENT_ID = "swh-web"
 
 
 class AuthenticationError(Exception):
@@ -19,6 +19,7 @@ class AuthenticationError(Exception):
     Example: A bearer token has expired.
 
     """
+
     pass
 
 
@@ -32,15 +33,16 @@ class OpenIDConnectSession:
         client_id: OpenID Connect client identifier in the realm
     """
 
-    def __init__(self, oidc_server_url: str = SWH_OIDC_SERVER_URL,
-                 realm_name: str = SWH_REALM_NAME,
-                 client_id: str = SWH_WEB_CLIENT_ID):
-        realm_url = urljoin(oidc_server_url, f'realms/{realm_name}/')
+    def __init__(
+        self,
+        oidc_server_url: str = SWH_OIDC_SERVER_URL,
+        realm_name: str = SWH_REALM_NAME,
+        client_id: str = SWH_WEB_CLIENT_ID,
+    ):
+        realm_url = urljoin(oidc_server_url, f"realms/{realm_name}/")
         self.client_id = client_id
-        self.token_url = urljoin(realm_url,
-                                 'protocol/openid-connect/token/')
-        self.logout_url = urljoin(realm_url,
-                                  'protocol/openid-connect/logout/')
+        self.token_url = urljoin(realm_url, "protocol/openid-connect/token/")
+        self.logout_url = urljoin(realm_url, "protocol/openid-connect/logout/")
 
     def login(self, username: str, password: str) -> Dict[str, Any]:
         """
@@ -57,11 +59,11 @@ class OpenIDConnectSession:
         return requests.post(
             url=self.token_url,
             data={
-                'grant_type': 'password',
-                'client_id': self.client_id,
-                'scope': 'openid offline_access',
-                'username': username,
-                'password': password,
+                "grant_type": "password",
+                "client_id": self.client_id,
+                "scope": "openid offline_access",
+                "username": username,
+                "password": password,
             },
         ).json()
 
@@ -79,10 +81,10 @@ class OpenIDConnectSession:
         return requests.post(
             url=self.token_url,
             data={
-                'grant_type': 'refresh_token',
-                'client_id': self.client_id,
-                'scope': 'openid',
-                'refresh_token': refresh_token,
+                "grant_type": "refresh_token",
+                "client_id": self.client_id,
+                "scope": "openid",
+                "refresh_token": refresh_token,
             },
         ).json()
 
@@ -97,8 +99,8 @@ class OpenIDConnectSession:
         requests.post(
             url=self.logout_url,
             data={
-                'client_id': self.client_id,
-                'scope': 'openid',
-                'refresh_token': refresh_token,
+                "client_id": self.client_id,
+                "scope": "openid",
+                "refresh_token": refresh_token,
             },
         )

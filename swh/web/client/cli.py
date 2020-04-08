@@ -18,19 +18,31 @@ def _output_json(obj):
     print(json.dumps(obj, indent=4, sort_keys=True))
 
 
-@click.group(name='auth', context_settings=CONTEXT_SETTINGS)
-@click.option('--oidc-server-url', 'oidc_server_url',
-              default='https://auth.softwareheritage.org/auth/',
-              help=('URL of OpenID Connect server (default to '
-                    '"https://auth.softwareheritage.org/auth/")'))
-@click.option('--realm-name', 'realm_name',
-              default='SoftwareHeritage',
-              help=('Name of the OpenID Connect authentication realm '
-                    '(default to "SoftwareHeritage")'))
-@click.option('--client-id', 'client_id',
-              default='swh-web',
-              help=('OpenID Connect client identifier in the realm '
-                    '(default to "swh-web")'))
+@click.group(name="auth", context_settings=CONTEXT_SETTINGS)
+@click.option(
+    "--oidc-server-url",
+    "oidc_server_url",
+    default="https://auth.softwareheritage.org/auth/",
+    help=(
+        "URL of OpenID Connect server (default to "
+        '"https://auth.softwareheritage.org/auth/")'
+    ),
+)
+@click.option(
+    "--realm-name",
+    "realm_name",
+    default="SoftwareHeritage",
+    help=(
+        "Name of the OpenID Connect authentication realm "
+        '(default to "SoftwareHeritage")'
+    ),
+)
+@click.option(
+    "--client-id",
+    "client_id",
+    default="swh-web",
+    help=("OpenID Connect client identifier in the realm " '(default to "swh-web")'),
+)
 @click.pass_context
 def auth(ctx: Context, oidc_server_url: str, realm_name: str, client_id: str):
     """
@@ -40,12 +52,13 @@ def auth(ctx: Context, oidc_server_url: str, realm_name: str, client_id: str):
     a user querying the Software Heritage Web API.
     """
     ctx.ensure_object(dict)
-    ctx.obj['oidc_session'] = OpenIDConnectSession(
-        oidc_server_url, realm_name, client_id)
+    ctx.obj["oidc_session"] = OpenIDConnectSession(
+        oidc_server_url, realm_name, client_id
+    )
 
 
-@auth.command('login')
-@click.argument('username')
+@auth.command("login")
+@click.argument("username")
 @click.pass_context
 def login(ctx: Context, username: str):
     """
@@ -67,12 +80,12 @@ def login(ctx: Context, username: str):
     """
     password = getpass()
 
-    oidc_profile = ctx.obj['oidc_session'].login(username, password)
+    oidc_profile = ctx.obj["oidc_session"].login(username, password)
     _output_json(oidc_profile)
 
 
-@auth.command('refresh')
-@click.argument('refresh_token')
+@auth.command("refresh")
+@click.argument("refresh_token")
 @click.pass_context
 def refresh(ctx: Context, refresh_token: str):
     """
@@ -82,16 +95,16 @@ def refresh(ctx: Context, refresh_token: str):
 
     New access token will be printed in JSON format to standard output.
     """
-    oidc_profile = ctx.obj['oidc_session'].refresh(refresh_token)
-    if 'access_token' in oidc_profile:
-        _output_json(oidc_profile['access_token'])
+    oidc_profile = ctx.obj["oidc_session"].refresh(refresh_token)
+    if "access_token" in oidc_profile:
+        _output_json(oidc_profile["access_token"])
     else:
         # print oidc error
         _output_json(oidc_profile)
 
 
-@auth.command('logout')
-@click.argument('refresh_token')
+@auth.command("logout")
+@click.argument("refresh_token")
 @click.pass_context
 def logout(ctx: Context, refresh_token: str):
     """
@@ -101,5 +114,5 @@ def logout(ctx: Context, refresh_token: str):
 
     Access and refresh tokens are no more usable after that operation.
     """
-    ctx.obj['oidc_session'].logout(refresh_token)
-    print('Successfully logged out from OpenID Connect session')
+    ctx.obj["oidc_session"].logout(refresh_token)
+    print("Successfully logged out from OpenID Connect session")

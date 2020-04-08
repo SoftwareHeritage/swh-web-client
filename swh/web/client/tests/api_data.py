@@ -4,8 +4,7 @@
 API_URL = "https://invalid-test-only.archive.softwareheritage.org/api/1"
 
 API_DATA = {
-    "content/sha1_git:fe95a46679d128ff167b7c55df5d02356c5a1ae1/":  # NoQA: E501
-    r"""
+    "content/sha1_git:fe95a46679d128ff167b7c55df5d02356c5a1ae1/": r"""
 {
   "length": 151810,
   "status": "visible",
@@ -20,9 +19,8 @@ API_DATA = {
   "language_url": "https://archive.softwareheritage.org/api/1/content/sha1_git:fe95a46679d128ff167b7c55df5d02356c5a1ae1/language/",
   "license_url": "https://archive.softwareheritage.org/api/1/content/sha1_git:fe95a46679d128ff167b7c55df5d02356c5a1ae1/license/"
 }
-    """,  # NoQA: E501
-    "directory/977fc4b98c0e85816348cebd3b12026407c368b6/":  # NoQA: E501
-    r"""
+    """,  # NoQA: E501  # NoQA: E501
+    "directory/977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
 [
   {
     "dir_id": "977fc4b98c0e85816348cebd3b12026407c368b6",
@@ -460,9 +458,8 @@ API_DATA = {
     "target_url": "https://archive.softwareheritage.org/api/1/content/sha1_git:6a05643838bb4ef64ae093f7a0f816a80d6f09f4/"
   }
 ]
-    """,  # NoQA: E501
-    "release/b9db10d00835e9a43e2eebef2db1d04d4ae82342/":  # NoQA: E501
-    r"""
+    """,  # NoQA: E501  # NoQA: E501
+    "release/b9db10d00835e9a43e2eebef2db1d04d4ae82342/": r"""
 {
   "author": {
     "fullname": "Paul Tagliamonte <tag@pault.ag>",
@@ -478,9 +475,8 @@ API_DATA = {
   "target_type": "revision",
   "target_url": "https://archive.softwareheritage.org/api/1/revision/e005cb773c769436709ca6a1d625dc784dbc1636/"
 }
-    """,  # NoQA: E501
-    "revision/aafb16d69fd30ff58afdd69036a26047f3aebdc6/":  # NoQA: E501
-    r"""
+    """,  # NoQA: E501  # NoQA: E501
+    "revision/aafb16d69fd30ff58afdd69036a26047f3aebdc6/": r"""
 {
   "id": "aafb16d69fd30ff58afdd69036a26047f3aebdc6",
   "author": {
@@ -515,9 +511,8 @@ API_DATA = {
   "history_url": "https://archive.softwareheritage.org/api/1/revision/aafb16d69fd30ff58afdd69036a26047f3aebdc6/log/",
   "directory_url": "https://archive.softwareheritage.org/api/1/directory/9f2e5898e00a66e6ac11033959d7e05b1593353b/"
 }
-    """,  # NoQA: E501
-    "snapshot/6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a/":  # NoQA: E501
-    r"""
+    """,  # NoQA: E501  # NoQA: E501
+    "snapshot/6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a/": r"""
 {
   "id": "6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
   "branches": {
@@ -544,9 +539,8 @@ API_DATA = {
   },
   "next_branch": null
 }
-    """,  # NoQA: E501
-    "snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/":  # NoQA: E501
-    r"""
+    """,  # NoQA: E501  # NoQA: E501
+    "snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/": r"""
 {
   "id": "cabcc7d7bf639bbe1cc3b41989e1806618dd5764",
   "branches": {
@@ -5553,9 +5547,8 @@ API_DATA = {
   },
   "next_branch": "refs/tags/v3.0-rc7"
 }
-    """,  # NoQA: E501
-    "snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/?branches_count=1000&branches_from=refs/tags/v3.0-rc7":  # NoQA: E501
-    r"""
+    """,  # NoQA: E501  # NoQA: E501
+    "snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/?branches_count=1000&branches_from=refs/tags/v3.0-rc7": r"""
 {
   "id": "cabcc7d7bf639bbe1cc3b41989e1806618dd5764",
   "branches": {
@@ -7517,5 +7510,5 @@ API_DATA = {
   },
   "next_branch": null
 }
-    """,  # NoQA: E501
+    """,  # NoQA: E501  # NoQA: E501
 }

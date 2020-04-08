@@ -35,14 +35,11 @@ from urllib.parse import urlparse
 import dateutil.parser
 import requests
 
-from swh.model.identifiers import \
-    SNAPSHOT, REVISION, RELEASE, DIRECTORY, CONTENT
+from swh.model.identifiers import SNAPSHOT, REVISION, RELEASE, DIRECTORY, CONTENT
 from swh.model.identifiers import PersistentId as PID
 from swh.model.identifiers import parse_persistent_identifier as parse_pid
 
-from .auth import (
-    AuthenticationError, OpenIDConnectSession, SWH_OIDC_SERVER_URL
-)
+from .auth import AuthenticationError, OpenIDConnectSession, SWH_OIDC_SERVER_URL
 
 PIDish = Union[PID, str]
 
@@ -64,6 +61,7 @@ def typify(data: Any, obj_type: str) -> Any:
     - timestamps are converted from strings to datetime.datetime objects
 
     """
+
     def to_pid(object_type, s):
         return PID(object_type=object_type, object_id=s)
 
@@ -71,43 +69,43 @@ def typify(data: Any, obj_type: str) -> Any:
         return dateutil.parser.parse(s)
 
     def obj_type_of_entry_type(s):
-        if s == 'file':
+        if s == "file":
             return CONTENT
-        elif s == 'dir':
+        elif s == "dir":
             return DIRECTORY
-        elif s == 'rev':
+        elif s == "rev":
             return REVISION
         else:
-            raise ValueError(f'invalid directory entry type: {s}')
+            raise ValueError(f"invalid directory entry type: {s}")
 
     if obj_type == SNAPSHOT:
         for name, target in data.items():
-            if target['target_type'] != 'alias':
+            if target["target_type"] != "alias":
                 # alias targets do not point to objects via PIDs; others do
-                target['target'] = to_pid(target['target_type'],
-                                          target['target'])
+                target["target"] = to_pid(target["target_type"], target["target"])
     elif obj_type == REVISION:
-        data['id'] = to_pid(obj_type, data['id'])
-        data['directory'] = to_pid(DIRECTORY, data['directory'])
-        for key in ('date', 'committer_date'):
+        data["id"] = to_pid(obj_type, data["id"])
+        data["directory"] = to_pid(DIRECTORY, data["directory"])
+        for key in ("date", "committer_date"):
             data[key] = to_date(data[key])
-        for parent in data['parents']:
-            parent['id'] = to_pid(REVISION, parent['id'])
+        for parent in data["parents"]:
+            parent["id"] = to_pid(REVISION, parent["id"])
     elif obj_type == RELEASE:
-        data['id'] = to_pid(obj_type, data['id'])
-        data['date'] = to_date(data['date'])
-        data['target'] = to_pid(data['target_type'], data['target'])
+        data["id"] = to_pid(obj_type, data["id"])
+        data["date"] = to_date(data["date"])
+        data["target"] = to_pid(data["target_type"], data["target"])
     elif obj_type == DIRECTORY:
         dir_pid = None
         for entry in data:
-            dir_pid = dir_pid or to_pid(obj_type, entry['dir_id'])
-            entry['dir_id'] = dir_pid
-            entry['target'] = to_pid(obj_type_of_entry_type(entry['type']),
-                                     entry['target'])
+            dir_pid = dir_pid or to_pid(obj_type, entry["dir_id"])
+            entry["dir_id"] = dir_pid
+            entry["target"] = to_pid(
+                obj_type_of_entry_type(entry["type"]), entry["target"]
+            )
     elif obj_type == CONTENT:
         pass  # nothing to do for contents
     else:
-        raise ValueError(f'invalid object type: {obj_type}')
+        raise ValueError(f"invalid object type: {obj_type}")
 
     return data
 
@@ -119,8 +117,11 @@ class WebAPIClient:
 
     """
 
-    def __init__(self, api_url='https://archive.softwareheritage.org/api/1',
-                 auth_url=SWH_OIDC_SERVER_URL):
+    def __init__(
+        self,
+        api_url="https://archive.softwareheritage.org/api/1",
+        auth_url=SWH_OIDC_SERVER_URL,
+    ):
         """Create a client for the Software Heritage Web API
 
         See: https://archive.softwareheritage.org/api/
@@ -130,7 +131,7 @@ class WebAPIClient:
                 "https://archive.softwareheritage.org/api/1")
 
         """
-        api_url = api_url.rstrip('/')
+        api_url = api_url.rstrip("/")
         u = urlparse(api_url)
 
         self.api_url = api_url
@@ -146,8 +147,9 @@ class WebAPIClient:
             SNAPSHOT: self._get_snapshot,
         }
 
-    def _call(self, query: str, http_method: str = 'get',
-              **req_args) -> requests.models.Response:
+    def _call(
+        self, query: str, http_method: str = "get", **req_args
+    ) -> requests.models.Response:
         """Dispatcher for archive API invocation
 
         Args:
@@ -163,25 +165,25 @@ class WebAPIClient:
         if urlparse(query).scheme:  # absolute URL
             url = query
         else:  # relative URL; prepend base API URL
-            url = '/'.join([self.api_url, query])
+            url = "/".join([self.api_url, query])
         r = None
 
         headers = {}
         if self.oidc_profile is not None:
             # use bearer token authentication
-            if datetime.now() > self.oidc_profile['expires_at']:
+            if datetime.now() > self.oidc_profile["expires_at"]:
                 # refresh access token if it has expired
-                self.authenticate(self.oidc_profile['refresh_token'])
-            access_token = self.oidc_profile['access_token']
-            headers = {'Authorization': f'Bearer {access_token}'}
+                self.authenticate(self.oidc_profile["refresh_token"])
+            access_token = self.oidc_profile["access_token"]
+            headers = {"Authorization": f"Bearer {access_token}"}
 
-        if http_method == 'get':
+        if http_method == "get":
             r = requests.get(url, **req_args, headers=headers)
             r.raise_for_status()
-        elif http_method == 'head':
+        elif http_method == "head":
             r = requests.head(url, **req_args, headers=headers)
         else:
-            raise ValueError(f'unsupported HTTP method: {http_method}')
+            raise ValueError(f"unsupported HTTP method: {http_method}")
 
         return r
 
@@ -211,8 +213,7 @@ class WebAPIClient:
         pid_ = _get_pid(pid)
         return self._getters[pid_.object_type](pid_)
 
-    def iter(self, pid: PIDish, **req_args) -> Generator[Dict[str, Any],
-                                                         None, None]:
+    def iter(self, pid: PIDish, **req_args) -> Generator[Dict[str, Any], None, None]:
         """Stream over the information about an object of any kind
 
         Streaming variant of get()
@@ -231,7 +232,7 @@ class WebAPIClient:
         elif obj_type == CONTENT:
             yield from [self.content(pid_)]
         else:
-            raise ValueError(f'invalid object type: {obj_type}')
+            raise ValueError(f"invalid object type: {obj_type}")
 
     def content(self, pid: PIDish, **req_args) -> Dict[str, Any]:
         """Retrieve information about a content object
@@ -245,9 +246,11 @@ class WebAPIClient:
 
         """
         return typify(
-            self._call(f'content/sha1_git:{_get_pid(pid).object_id}/',
-                       **req_args).json(),
-            CONTENT)
+            self._call(
+                f"content/sha1_git:{_get_pid(pid).object_id}/", **req_args
+            ).json(),
+            CONTENT,
+        )
 
     def directory(self, pid: PIDish, **req_args) -> List[Dict[str, Any]]:
         """Retrieve information about a directory object
@@ -261,9 +264,9 @@ class WebAPIClient:
 
         """
         return typify(
-            self._call(f'directory/{_get_pid(pid).object_id}/',
-                       **req_args).json(),
-            DIRECTORY)
+            self._call(f"directory/{_get_pid(pid).object_id}/", **req_args).json(),
+            DIRECTORY,
+        )
 
     def revision(self, pid: PIDish, **req_args) -> Dict[str, Any]:
         """Retrieve information about a revision object
@@ -277,9 +280,9 @@ class WebAPIClient:
 
         """
         return typify(
-            self._call(f'revision/{_get_pid(pid).object_id}/',
-                       **req_args).json(),
-            REVISION)
+            self._call(f"revision/{_get_pid(pid).object_id}/", **req_args).json(),
+            REVISION,
+        )
 
     def release(self, pid: PIDish, **req_args) -> Dict[str, Any]:
         """Retrieve information about a release object
@@ -293,12 +296,13 @@ class WebAPIClient:
 
         """
         return typify(
-            self._call(f'release/{_get_pid(pid).object_id}/',
-                       **req_args).json(),
-            RELEASE)
+            self._call(f"release/{_get_pid(pid).object_id}/", **req_args).json(),
+            RELEASE,
+        )
 
-    def snapshot(self, pid: PIDish,
-                 **req_args) -> Generator[Dict[str, Any], None, None]:
+    def snapshot(
+        self, pid: PIDish, **req_args
+    ) -> Generator[Dict[str, Any], None, None]:
         """Retrieve information about a snapshot object
 
         Args:
@@ -316,13 +320,13 @@ class WebAPIClient:
         """
         done = False
         r = None
-        query = f'snapshot/{_get_pid(pid).object_id}/'
+        query = f"snapshot/{_get_pid(pid).object_id}/"
 
         while not done:
-            r = self._call(query, http_method='get', **req_args)
-            yield typify(r.json()['branches'], SNAPSHOT)
-            if 'next' in r.links and 'url' in r.links['next']:
-                query = r.links['next']['url']
+            r = self._call(query, http_method="get", **req_args)
+            yield typify(r.json()["branches"], SNAPSHOT)
+            if "next" in r.links and "url" in r.links["next"]:
+                query = r.links["next"]["url"]
             else:
                 done = True
 
@@ -337,8 +341,13 @@ class WebAPIClient:
           requests.HTTPError: if HTTP request fails
 
         """
-        return bool(self._call(f'content/sha1_git:{_get_pid(pid).object_id}/',
-                               http_method='head', **req_args))
+        return bool(
+            self._call(
+                f"content/sha1_git:{_get_pid(pid).object_id}/",
+                http_method="head",
+                **req_args,
+            )
+        )
 
     def directory_exists(self, pid: PIDish, **req_args) -> bool:
         """Check if a directory object exists in the archive
@@ -351,8 +360,11 @@ class WebAPIClient:
           requests.HTTPError: if HTTP request fails
 
         """
-        return bool(self._call(f'directory/{_get_pid(pid).object_id}/',
-                               http_method='head', **req_args))
+        return bool(
+            self._call(
+                f"directory/{_get_pid(pid).object_id}/", http_method="head", **req_args
+            )
+        )
 
     def revision_exists(self, pid: PIDish, **req_args) -> bool:
         """Check if a revision object exists in the archive
@@ -365,8 +377,11 @@ class WebAPIClient:
           requests.HTTPError: if HTTP request fails
 
         """
-        return bool(self._call(f'revision/{_get_pid(pid).object_id}/',
-                               http_method='head', **req_args))
+        return bool(
+            self._call(
+                f"revision/{_get_pid(pid).object_id}/", http_method="head", **req_args
+            )
+        )
 
     def release_exists(self, pid: PIDish, **req_args) -> bool:
         """Check if a release object exists in the archive
@@ -379,8 +394,11 @@ class WebAPIClient:
           requests.HTTPError: if HTTP request fails
 
         """
-        return bool(self._call(f'release/{_get_pid(pid).object_id}/',
-                               http_method='head', **req_args))
+        return bool(
+            self._call(
+                f"release/{_get_pid(pid).object_id}/", http_method="head", **req_args
+            )
+        )
 
     def snapshot_exists(self, pid: PIDish, **req_args) -> bool:
         """Check if a snapshot object exists in the archive
@@ -393,11 +411,13 @@ class WebAPIClient:
           requests.HTTPError: if HTTP request fails
 
         """
-        return bool(self._call(f'snapshot/{_get_pid(pid).object_id}/',
-                               http_method='head', **req_args))
+        return bool(
+            self._call(
+                f"snapshot/{_get_pid(pid).object_id}/", http_method="head", **req_args
+            )
+        )
 
-    def content_raw(self, pid: PIDish,
-                    **req_args) -> Generator[bytes, None, None]:
+    def content_raw(self, pid: PIDish, **req_args) -> Generator[bytes, None, None]:
         """Iterate over the raw content of a content object
 
         Args:
@@ -408,8 +428,9 @@ class WebAPIClient:
           requests.HTTPError: if HTTP request fails
 
         """
-        r = self._call(f'content/sha1_git:{_get_pid(pid).object_id}/raw/',
-                       stream=True, **req_args)
+        r = self._call(
+            f"content/sha1_git:{_get_pid(pid).object_id}/raw/", stream=True, **req_args
+        )
         r.raise_for_status()
 
         yield from r.iter_content(chunk_size=None, decode_unicode=False)
@@ -430,12 +451,12 @@ class WebAPIClient:
         try:
             self.oidc_profile = self.oidc_session.refresh(refresh_token)
             assert self.oidc_profile
-            if 'expires_in' in self.oidc_profile:
-                expires_in = self.oidc_profile['expires_in']
+            if "expires_in" in self.oidc_profile:
+                expires_in = self.oidc_profile["expires_in"]
                 expires_at = now + timedelta(seconds=expires_in)
-                self.oidc_profile['expires_at'] = expires_at
+                self.oidc_profile["expires_at"] = expires_at
         except Exception as e:
             raise AuthenticationError(str(e))
-        if 'access_token' not in self.oidc_profile:
+        if "access_token" not in self.oidc_profile:
             # JSON error response
             raise AuthenticationError(self.oidc_profile)
