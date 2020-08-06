@@ -4,4 +4,3 @@
 click
 python-dateutil
 requests
-vcversioner
