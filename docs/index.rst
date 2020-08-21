@@ -68,7 +68,7 @@ variable, you can perform an authenticated call the following way using ``curl``
 
 .. code-block:: text
 
-  $ curl -H "Authorization: Bearer ${TOKEN}" http://localhost:5004/api/1/<endpoint>
+  $ curl -H "Authorization: Bearer ${TOKEN}" https://archive.softwareheritage.org/api/1/<endpoint>
 
 The access token has a short living period (usually ten minutes) and must be
 renewed on a regular basis by passing the ``refresh_token`` value as argument
