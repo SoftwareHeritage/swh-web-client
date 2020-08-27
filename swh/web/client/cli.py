@@ -4,7 +4,6 @@
 # See top-level LICENSE file for more information
 
 from getpass import getpass
-import json
 
 import click
 from click.core import Context
@@ -12,10 +11,6 @@ from click.core import Context
 from swh.web.client.auth import OpenIDConnectSession
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
-
-
-def _output_json(obj):
-    print(json.dumps(obj, indent=4, sort_keys=True))
 
 
 @click.group(name="auth", context_settings=CONTEXT_SETTINGS)
@@ -48,7 +43,7 @@ def auth(ctx: Context, oidc_server_url: str, realm_name: str, client_id: str):
     """
     Authenticate Software Heritage users with OpenID Connect.
 
-    This CLI tool eases the retrieval of bearer tokens to authenticate
+    This CLI tool eases the retrieval of a bearer token to authenticate
     a user querying the Software Heritage Web API.
     """
     ctx.ensure_object(dict)
@@ -65,54 +60,34 @@ def login(ctx: Context, username: str):
     Login and create new offline OpenID Connect session.
 
     Login with USERNAME, create a new OpenID Connect session and get
-    access and refresh tokens.
+    bearer token.
 
-    User will be prompted for his password and tokens will be printed in
-    JSON format to standard output.
-
-    When its access token has expired, user can request a new one using the
-    session-refresh command of that CLI tool without having to authenticate
-    using a password again.
+    User will be prompted for his password and tokens will be printed
+    to standard output.
 
     The created OpenID Connect session is an offline one so the provided
-    refresh token has a much longer expiration time than classical OIDC
+    token has a much longer expiration time than classical OIDC
     sessions (usually several dozens of days).
     """
     password = getpass()
 
-    oidc_profile = ctx.obj["oidc_session"].login(username, password)
-    _output_json(oidc_profile)
-
-
-@auth.command("refresh")
-@click.argument("refresh_token")
-@click.pass_context
-def refresh(ctx: Context, refresh_token: str):
-    """
-    Refresh an offline OpenID Connect session.
-
-    Get a new access token from REFRESH_TOKEN when previous one expired.
-
-    New access token will be printed in JSON format to standard output.
-    """
-    oidc_profile = ctx.obj["oidc_session"].refresh(refresh_token)
-    if "access_token" in oidc_profile:
-        _output_json(oidc_profile["access_token"])
+    oidc_info = ctx.obj["oidc_session"].login(username, password)
+    if "refresh_token" in oidc_info:
+        print(oidc_info["refresh_token"])
     else:
-        # print oidc error
-        _output_json(oidc_profile)
+        print(oidc_info)
 
 
 @auth.command("logout")
-@click.argument("refresh_token")
+@click.argument("token")
 @click.pass_context
-def logout(ctx: Context, refresh_token: str):
+def logout(ctx: Context, token: str):
     """
     Logout from an offline OpenID Connect session.
 
-    Use REFRESH_TOKEN to logout from an offline OpenID Connect session.
+    Use TOKEN to logout from an offline OpenID Connect session.
 
-    Access and refresh tokens are no more usable after that operation.
+    The token is definitely revoked after that operation.
     """
-    ctx.obj["oidc_session"].logout(refresh_token)
+    ctx.obj["oidc_session"].logout(token)
     print("Successfully logged out from OpenID Connect session")

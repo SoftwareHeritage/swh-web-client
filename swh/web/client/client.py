@@ -28,7 +28,6 @@ conversions and pagination.
 
 """
 
-from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Generator, List, Optional, Union
 from urllib.parse import urlparse
 
@@ -38,8 +37,6 @@ import requests
 from swh.model.identifiers import SNAPSHOT, REVISION, RELEASE, DIRECTORY, CONTENT
 from swh.model.identifiers import PersistentId as PID
 from swh.model.identifiers import parse_persistent_identifier as parse_pid
-
-from .auth import AuthenticationError, OpenIDConnectSession, SWH_OIDC_SERVER_URL
 
 PIDish = Union[PID, str]
 
@@ -107,9 +104,9 @@ def typify(data: Any, obj_type: str) -> Any:
     elif obj_type == CONTENT:
         pass  # nothing to do for contents
     elif obj_type == ORIGIN_VISIT:
-        data['date'] = to_date(data['date'])
-        if data['snapshot'] is not None:
-            data['snapshot'] = to_pid(SNAPSHOT, data['snapshot'])
+        data["date"] = to_date(data["date"])
+        if data["snapshot"] is not None:
+            data["snapshot"] = to_pid(SNAPSHOT, data["snapshot"])
     else:
         raise ValueError(f"invalid object type: {obj_type}")
 
@@ -125,8 +122,8 @@ class WebAPIClient:
 
     def __init__(
         self,
-        api_url="https://archive.softwareheritage.org/api/1",
-        auth_url=SWH_OIDC_SERVER_URL,
+        api_url: str = "https://archive.softwareheritage.org/api/1",
+        bearer_token: Optional[str] = None,
     ):
         """Create a client for the Software Heritage Web API
 
@@ -135,15 +132,14 @@ class WebAPIClient:
         Args:
             api_url: base URL for API calls (default:
                 "https://archive.softwareheritage.org/api/1")
-
+            bearer_token: optional bearer token to do authenticated API calls
         """
         api_url = api_url.rstrip("/")
         u = urlparse(api_url)
 
         self.api_url = api_url
         self.api_path = u.path
-        self.oidc_session = OpenIDConnectSession(oidc_server_url=auth_url)
-        self.oidc_profile: Optional[Dict[str, Any]] = None
+        self.bearer_token = bearer_token
 
         self._getters: Dict[str, Callable[[PIDish], Any]] = {
             CONTENT: self.content,
@@ -175,13 +171,8 @@ class WebAPIClient:
         r = None
 
         headers = {}
-        if self.oidc_profile is not None:
-            # use bearer token authentication
-            if datetime.now() > self.oidc_profile["expires_at"]:
-                # refresh access token if it has expired
-                self.authenticate(self.oidc_profile["refresh_token"])
-            access_token = self.oidc_profile["access_token"]
-            headers = {"Authorization": f"Bearer {access_token}"}
+        if self.bearer_token is not None:
+            headers = {"Authorization": f"Bearer {self.bearer_token}"}
 
         if http_method == "get":
             r = requests.get(url, **req_args, headers=headers)
@@ -336,11 +327,13 @@ class WebAPIClient:
             else:
                 done = True
 
-    def visits(self,
-               origin: str,
-               per_page: Optional[int] = None,
-               last_visit: Optional[int] = None,
-               **req_args) -> Generator[Dict[str, Any], None, None]:
+    def visits(
+        self,
+        origin: str,
+        per_page: Optional[int] = None,
+        last_visit: Optional[int] = None,
+        **req_args,
+    ) -> Generator[Dict[str, Any], None, None]:
         """List visits of an origin
 
         Args:
@@ -365,14 +358,14 @@ class WebAPIClient:
         if per_page is not None:
             params.append(("per_page", per_page))
 
-        query = f'origin/{origin}/visits/'
+        query = f"origin/{origin}/visits/"
 
         while not done:
-            r = self._call(query, http_method='get', params=params, **req_args)
+            r = self._call(query, http_method="get", params=params, **req_args)
             yield from [typify(v, ORIGIN_VISIT) for v in r.json()]
-            if 'next' in r.links and 'url' in r.links['next']:
+            if "next" in r.links and "url" in r.links["next"]:
                 params = []
-                query = r.links['next']['url']
+                query = r.links["next"]["url"]
             else:
                 done = True
 
@@ -480,29 +473,3 @@ class WebAPIClient:
         r.raise_for_status()
 
         yield from r.iter_content(chunk_size=None, decode_unicode=False)
-
-    def authenticate(self, refresh_token: str):
-        """Authenticate API requests using OpenID Connect bearer token
-
-        Args:
-            refresh_token: A refresh token retrieved using the
-                ``swh auth login`` command (see :ref:`swh-web-client-auth`
-                section in main documentation)
-
-        Raises:
-            swh.web.client.auth.AuthenticationError: if authentication fails
-
-        """
-        now = datetime.now()
-        try:
-            self.oidc_profile = self.oidc_session.refresh(refresh_token)
-            assert self.oidc_profile
-            if "expires_in" in self.oidc_profile:
-                expires_in = self.oidc_profile["expires_in"]
-                expires_at = now + timedelta(seconds=expires_in)
-                self.oidc_profile["expires_at"] = expires_at
-        except Exception as e:
-            raise AuthenticationError(str(e))
-        if "access_token" not in self.oidc_profile:
-            # JSON error response
-            raise AuthenticationError(self.oidc_profile)

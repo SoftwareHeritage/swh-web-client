@@ -16,7 +16,7 @@ SWH_WEB_CLIENT_ID = "swh-web"
 class AuthenticationError(Exception):
     """Authentication related error.
 
-    Example: A bearer token has expired.
+    Example: A bearer token has been revoked.
 
     """
 
@@ -53,8 +53,7 @@ class OpenIDConnectSession:
             password: password associated to username
 
         Returns:
-            a dict filled with OpenID Connect profile info, notably access
-            and refresh tokens for API authentication.
+            The OpenID Connect session info
         """
         return requests.post(
             url=self.token_url,
@@ -67,40 +66,19 @@ class OpenIDConnectSession:
             },
         ).json()
 
-    def refresh(self, refresh_token: str) -> Dict[str, Any]:
-        """
-        Refresh an offline OpenID Connect session to get new access token.
-
-        Args:
-            refresh_token: a refresh token retrieved after login
-
-        Returns:
-            a dict filled with OpenID Connect profile info, notably access
-            and refresh tokens for API authentication.
-        """
-        return requests.post(
-            url=self.token_url,
-            data={
-                "grant_type": "refresh_token",
-                "client_id": self.client_id,
-                "scope": "openid",
-                "refresh_token": refresh_token,
-            },
-        ).json()
-
-    def logout(self, refresh_token: str):
+    def logout(self, token: str):
         """
         Logout from an offline OpenID Connect session and invalidate
         previously emitted tokens.
 
         Args:
-            refresh_token: a refresh token retrieved after login
+            token: a bearer token retrieved after login
         """
         requests.post(
             url=self.logout_url,
             data={
                 "client_id": self.client_id,
                 "scope": "openid",
-                "refresh_token": refresh_token,
+                "refresh_token": token,
             },
         )

@@ -3,8 +3,6 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-import json
-
 from click.testing import CliRunner
 
 from swh.web.client.cli import auth
@@ -31,26 +29,11 @@ def test_auth_login(mocker):
 
     result = runner.invoke(auth, ["login", "username"], input="password\n")
     assert result.exit_code == 0
-    assert json.loads(result.output) == oidc_profile
+    assert result.output[:-1] == oidc_profile["refresh_token"]
 
     mock_login.side_effect = Exception("Auth error")
 
     result = runner.invoke(auth, ["login", "username"], input="password\n")
-    assert result.exit_code == 1
-
-
-def test_auth_refresh(mocker):
-
-    mock_oidc_session = mocker.patch("swh.web.client.cli.OpenIDConnectSession")
-    mock_refresh = mock_oidc_session.return_value.refresh
-    mock_refresh.return_value = oidc_profile
-
-    result = runner.invoke(auth, ["refresh", oidc_profile["refresh_token"]])
-    assert result.exit_code == 0
-    assert json.loads(result.stdout) == oidc_profile["access_token"]
-
-    mock_refresh.side_effect = Exception("Auth error")
-    result = runner.invoke(auth, ["refresh", oidc_profile["refresh_token"]])
     assert result.exit_code == 1
 
 
