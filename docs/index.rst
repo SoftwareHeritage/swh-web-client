@@ -61,7 +61,7 @@ variable, you can perform an authenticated call the following way using ``curl``
 Note that if you intend to use the :class:`swh.web.client.client.WebAPIClient`
 class, you can activate authentication by using the following code snippet::
 
-  from swh.web.client import WebAPIClient
+  from swh.web.client.client import WebAPIClient
 
   TOKEN = '.......'  # Use "swh auth login" command to get it
 

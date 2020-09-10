@@ -6,7 +6,7 @@
 import pytest
 
 from .api_data import API_URL, API_DATA
-from swh.web.client import WebAPIClient
+from swh.web.client.client import WebAPIClient
 
 
 @pytest.fixture
@@ -19,11 +19,13 @@ def web_api_mock(requests_mock):
             headers = {
                 "Link": f'<{API_URL}/{api_call}?branches_count=1000&branches_from=refs/tags/v3.0-rc7>; rel="next"'  # NoQA: E501
             }
-        elif api_call == "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=50&per_page=10":  # NoQA: E501
+        elif (
+            api_call
+            == "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=50&per_page=10"  # NoQA: E501
+        ):
             # to make the client follow pagination
             headers = {
-                "Link":
-                f"<{API_URL}/origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10>; rel=\"next\""  # NoQA: E501
+                "Link": f'<{API_URL}/origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10>; rel="next"'  # NoQA: E501
             }
         requests_mock.get(f"{API_URL}/{api_call}", text=data, headers=headers)
     return requests_mock

@@ -10,7 +10,7 @@ conversions and pagination.
 
 .. code-block:: python
 
-   from swh.web.client import WebAPIClient
+   from swh.web.client.client import WebAPIClient
    cli = WebAPIClient()
 
    # retrieve any archived object via its PID
