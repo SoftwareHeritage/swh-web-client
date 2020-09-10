@@ -21,9 +21,9 @@ oidc_profile = {
 
 
 def test_auth_login(mocker):
-    mock_getpass = mocker.patch("swh.web.client.cli.getpass")
+    mock_getpass = mocker.patch("getpass.getpass")
     mock_getpass.return_value = "password"
-    mock_oidc_session = mocker.patch("swh.web.client.cli.OpenIDConnectSession")
+    mock_oidc_session = mocker.patch("swh.web.client.auth.OpenIDConnectSession")
     mock_login = mock_oidc_session.return_value.login
     mock_login.return_value = oidc_profile
 
@@ -39,7 +39,7 @@ def test_auth_login(mocker):
 
 def test_auth_logout(mocker):
 
-    mock_oidc_session = mocker.patch("swh.web.client.cli.OpenIDConnectSession")
+    mock_oidc_session = mocker.patch("swh.web.client.auth.OpenIDConnectSession")
     mock_logout = mock_oidc_session.return_value.logout
 
     result = runner.invoke(auth, ["logout", oidc_profile["refresh_token"]])

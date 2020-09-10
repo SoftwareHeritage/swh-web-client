@@ -3,12 +3,11 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
-from getpass import getpass
-
+# WARNING: do not import unnecessary things here to keep cli startup time under
+# control
 import click
 from click.core import Context
 
-from swh.web.client.auth import OpenIDConnectSession
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
@@ -46,6 +45,8 @@ def auth(ctx: Context, oidc_server_url: str, realm_name: str, client_id: str):
     This CLI tool eases the retrieval of a bearer token to authenticate
     a user querying the Software Heritage Web API.
     """
+    from swh.web.client.auth import OpenIDConnectSession
+
     ctx.ensure_object(dict)
     ctx.obj["oidc_session"] = OpenIDConnectSession(
         oidc_server_url, realm_name, client_id
@@ -69,6 +70,8 @@ def login(ctx: Context, username: str):
     token has a much longer expiration time than classical OIDC
     sessions (usually several dozens of days).
     """
+    from getpass import getpass
+
     password = getpass()
 
     oidc_info = ctx.obj["oidc_session"].login(username, password)
