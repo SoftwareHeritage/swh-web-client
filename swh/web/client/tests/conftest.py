@@ -5,8 +5,9 @@
 
 import pytest
 
-from .api_data import API_URL, API_DATA
 from swh.web.client.client import WebAPIClient
+
+from .api_data import API_DATA, API_URL
 
 
 @pytest.fixture

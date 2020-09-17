@@ -34,7 +34,7 @@ from urllib.parse import urlparse
 import dateutil.parser
 import requests
 
-from swh.model.identifiers import SNAPSHOT, REVISION, RELEASE, DIRECTORY, CONTENT
+from swh.model.identifiers import CONTENT, DIRECTORY, RELEASE, REVISION, SNAPSHOT
 from swh.model.identifiers import PersistentId as PID
 from swh.model.identifiers import parse_persistent_identifier as parse_pid
 

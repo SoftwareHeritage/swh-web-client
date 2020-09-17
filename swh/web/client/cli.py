@@ -8,7 +8,6 @@
 import click
 from click.core import Context
 
-
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 

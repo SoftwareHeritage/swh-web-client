@@ -7511,8 +7511,7 @@ API_DATA = {
   "next_branch": null
 }
     """,  # NoQA: E501  # NoQA: E501
-    "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=50&per_page=10":  # NoQA: E501
-    r"""
+    "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=50&per_page=10": r"""
 [
   {
     "origin": "https://github.com/NixOS/nixpkgs",
@@ -7615,9 +7614,8 @@ API_DATA = {
     "snapshot_url": null
   }
 ]
-    """,  # NoQA: E501
-    "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10":  # NoQA: E501
-    r"""
+    """,  # NoQA: E501  # NoQA: E501
+    "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10": r"""
 [
   {
     "origin": "https://github.com/NixOS/nixpkgs",
@@ -7720,5 +7718,5 @@ API_DATA = {
     "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/100de51846f317e6ab48da79d985cefa6fdefe42/"
   }
 ]
-    """,  # NoQA: E501
+    """,  # NoQA: E501  # NoQA: E501
 }
