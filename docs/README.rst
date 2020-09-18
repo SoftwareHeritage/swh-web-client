@@ -12,7 +12,7 @@ Sample usage
    from swh.web.client.client import WebAPIClient
    cli = WebAPIClient()
 
-   # retrieve any archived object via its PID
+   # retrieve any archived object via its SWHID
    cli.get('swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6')
 
    # same, but for specific object types

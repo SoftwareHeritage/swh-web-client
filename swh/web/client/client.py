@@ -13,7 +13,7 @@ conversions and pagination.
    from swh.web.client.client import WebAPIClient
    cli = WebAPIClient()
 
-   # retrieve any archived object via its PID
+   # retrieve any archived object via its SWHID
    cli.get('swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6')
 
    # same, but for specific object types
@@ -28,27 +28,33 @@ conversions and pagination.
 
 """
 
-from typing import Any, Callable, Dict, Generator, List, Optional, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 from urllib.parse import urlparse
 
 import dateutil.parser
 import requests
 
-from swh.model.identifiers import CONTENT, DIRECTORY, RELEASE, REVISION, SNAPSHOT
-from swh.model.identifiers import PersistentId as PID
-from swh.model.identifiers import parse_persistent_identifier as parse_pid
+from swh.model.identifiers import (
+    CONTENT,
+    DIRECTORY,
+    RELEASE,
+    REVISION,
+    SNAPSHOT,
+    SWHID,
+    parse_swhid,
+)
 
-PIDish = Union[PID, str]
+SWHIDish = Union[SWHID, str]
 
 ORIGIN_VISIT = "origin_visit"
 
 
-def _get_pid(pidish: PIDish) -> PID:
-    """Parse string to PID if needed"""
-    if isinstance(pidish, str):
-        return parse_pid(pidish)
+def _get_swhid(swhidish: SWHIDish) -> SWHID:
+    """Parse string to SWHID if needed"""
+    if isinstance(swhidish, str):
+        return parse_swhid(swhidish)
     else:
-        return pidish
+        return swhidish
 
 
 def typify(data: Any, obj_type: str) -> Any:
@@ -56,13 +62,13 @@ def typify(data: Any, obj_type: str) -> Any:
 
     The following conversions are performed:
 
-    - identifiers are converted from strings to PersistentId instances
+    - identifiers are converted from strings to SWHID instances
     - timestamps are converted from strings to datetime.datetime objects
 
     """
 
-    def to_pid(object_type, s):
-        return PID(object_type=object_type, object_id=s)
+    def to_swhid(object_type, s):
+        return SWHID(object_type=object_type, object_id=s)
 
     def to_date(s):
         return dateutil.parser.parse(s)
@@ -80,25 +86,25 @@ def typify(data: Any, obj_type: str) -> Any:
     if obj_type == SNAPSHOT:
         for name, target in data.items():
             if target["target_type"] != "alias":
-                # alias targets do not point to objects via PIDs; others do
-                target["target"] = to_pid(target["target_type"], target["target"])
+                # alias targets do not point to objects via SWHIDs; others do
+                target["target"] = to_swhid(target["target_type"], target["target"])
     elif obj_type == REVISION:
-        data["id"] = to_pid(obj_type, data["id"])
-        data["directory"] = to_pid(DIRECTORY, data["directory"])
+        data["id"] = to_swhid(obj_type, data["id"])
+        data["directory"] = to_swhid(DIRECTORY, data["directory"])
         for key in ("date", "committer_date"):
             data[key] = to_date(data[key])
         for parent in data["parents"]:
-            parent["id"] = to_pid(REVISION, parent["id"])
+            parent["id"] = to_swhid(REVISION, parent["id"])
     elif obj_type == RELEASE:
-        data["id"] = to_pid(obj_type, data["id"])
+        data["id"] = to_swhid(obj_type, data["id"])
         data["date"] = to_date(data["date"])
-        data["target"] = to_pid(data["target_type"], data["target"])
+        data["target"] = to_swhid(data["target_type"], data["target"])
     elif obj_type == DIRECTORY:
-        dir_pid = None
+        dir_swhid = None
         for entry in data:
-            dir_pid = dir_pid or to_pid(obj_type, entry["dir_id"])
-            entry["dir_id"] = dir_pid
-            entry["target"] = to_pid(
+            dir_swhid = dir_swhid or to_swhid(obj_type, entry["dir_id"])
+            entry["dir_id"] = dir_swhid
+            entry["target"] = to_swhid(
                 obj_type_of_entry_type(entry["type"]), entry["target"]
             )
     elif obj_type == CONTENT:
@@ -106,7 +112,7 @@ def typify(data: Any, obj_type: str) -> Any:
     elif obj_type == ORIGIN_VISIT:
         data["date"] = to_date(data["date"])
         if data["snapshot"] is not None:
-            data["snapshot"] = to_pid(SNAPSHOT, data["snapshot"])
+            data["snapshot"] = to_swhid(SNAPSHOT, data["snapshot"])
     else:
         raise ValueError(f"invalid object type: {obj_type}")
 
@@ -141,7 +147,7 @@ class WebAPIClient:
         self.api_path = u.path
         self.bearer_token = bearer_token
 
-        self._getters: Dict[str, Callable[[PIDish], Any]] = {
+        self._getters: Dict[str, Callable[[SWHIDish], Any]] = {
             CONTENT: self.content,
             DIRECTORY: self.directory,
             RELEASE: self.release,
@@ -184,18 +190,18 @@ class WebAPIClient:
 
         return r
 
-    def _get_snapshot(self, pid: PIDish) -> Dict[str, Any]:
+    def _get_snapshot(self, swhid: SWHIDish) -> Dict[str, Any]:
         """Analogous to self.snapshot(), but zipping through partial snapshots,
         merging them together before returning
 
         """
         snapshot = {}
-        for snp in self.snapshot(pid):
+        for snp in self.snapshot(swhid):
             snapshot.update(snp)
 
         return snapshot
 
-    def get(self, pid: PIDish, **req_args) -> Any:
+    def get(self, swhid: SWHIDish, **req_args) -> Any:
         """Retrieve information about an object of any kind
 
         Dispatcher method over the more specific methods content(),
@@ -207,35 +213,35 @@ class WebAPIClient:
 
         """
 
-        pid_ = _get_pid(pid)
-        return self._getters[pid_.object_type](pid_)
+        swhid_ = _get_swhid(swhid)
+        return self._getters[swhid_.object_type](swhid_)
 
-    def iter(self, pid: PIDish, **req_args) -> Generator[Dict[str, Any], None, None]:
+    def iter(self, swhid: SWHIDish, **req_args) -> Iterator[Dict[str, Any]]:
         """Stream over the information about an object of any kind
 
         Streaming variant of get()
 
         """
-        pid_ = _get_pid(pid)
-        obj_type = pid_.object_type
+        swhid_ = _get_swhid(swhid)
+        obj_type = swhid_.object_type
         if obj_type == SNAPSHOT:
-            yield from self.snapshot(pid_)
+            yield from self.snapshot(swhid_)
         elif obj_type == REVISION:
-            yield from [self.revision(pid_)]
+            yield from [self.revision(swhid_)]
         elif obj_type == RELEASE:
-            yield from [self.release(pid_)]
+            yield from [self.release(swhid_)]
         elif obj_type == DIRECTORY:
-            yield from self.directory(pid_)
+            yield from self.directory(swhid_)
         elif obj_type == CONTENT:
-            yield from [self.content(pid_)]
+            yield from [self.content(swhid_)]
         else:
             raise ValueError(f"invalid object type: {obj_type}")
 
-    def content(self, pid: PIDish, **req_args) -> Dict[str, Any]:
+    def content(self, swhid: SWHIDish, **req_args) -> Dict[str, Any]:
         """Retrieve information about a content object
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.get()
 
         Raises:
@@ -244,16 +250,16 @@ class WebAPIClient:
         """
         return typify(
             self._call(
-                f"content/sha1_git:{_get_pid(pid).object_id}/", **req_args
+                f"content/sha1_git:{_get_swhid(swhid).object_id}/", **req_args
             ).json(),
             CONTENT,
         )
 
-    def directory(self, pid: PIDish, **req_args) -> List[Dict[str, Any]]:
+    def directory(self, swhid: SWHIDish, **req_args) -> List[Dict[str, Any]]:
         """Retrieve information about a directory object
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.get()
 
         Raises:
@@ -261,15 +267,15 @@ class WebAPIClient:
 
         """
         return typify(
-            self._call(f"directory/{_get_pid(pid).object_id}/", **req_args).json(),
+            self._call(f"directory/{_get_swhid(swhid).object_id}/", **req_args).json(),
             DIRECTORY,
         )
 
-    def revision(self, pid: PIDish, **req_args) -> Dict[str, Any]:
+    def revision(self, swhid: SWHIDish, **req_args) -> Dict[str, Any]:
         """Retrieve information about a revision object
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.get()
 
         Raises:
@@ -277,15 +283,15 @@ class WebAPIClient:
 
         """
         return typify(
-            self._call(f"revision/{_get_pid(pid).object_id}/", **req_args).json(),
+            self._call(f"revision/{_get_swhid(swhid).object_id}/", **req_args).json(),
             REVISION,
         )
 
-    def release(self, pid: PIDish, **req_args) -> Dict[str, Any]:
+    def release(self, swhid: SWHIDish, **req_args) -> Dict[str, Any]:
         """Retrieve information about a release object
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.get()
 
         Raises:
@@ -293,17 +299,15 @@ class WebAPIClient:
 
         """
         return typify(
-            self._call(f"release/{_get_pid(pid).object_id}/", **req_args).json(),
+            self._call(f"release/{_get_swhid(swhid).object_id}/", **req_args).json(),
             RELEASE,
         )
 
-    def snapshot(
-        self, pid: PIDish, **req_args
-    ) -> Generator[Dict[str, Any], None, None]:
+    def snapshot(self, swhid: SWHIDish, **req_args) -> Iterator[Dict[str, Any]]:
         """Retrieve information about a snapshot object
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.get()
 
         Returns:
@@ -317,7 +321,7 @@ class WebAPIClient:
         """
         done = False
         r = None
-        query = f"snapshot/{_get_pid(pid).object_id}/"
+        query = f"snapshot/{_get_swhid(swhid).object_id}/"
 
         while not done:
             r = self._call(query, http_method="get", **req_args)
@@ -333,7 +337,7 @@ class WebAPIClient:
         per_page: Optional[int] = None,
         last_visit: Optional[int] = None,
         **req_args,
-    ) -> Generator[Dict[str, Any], None, None]:
+    ) -> Iterator[Dict[str, Any]]:
         """List visits of an origin
 
         Args:
@@ -369,11 +373,11 @@ class WebAPIClient:
             else:
                 done = True
 
-    def content_exists(self, pid: PIDish, **req_args) -> bool:
+    def content_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a content object exists in the archive
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.head()
 
         Raises:
@@ -382,17 +386,17 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"content/sha1_git:{_get_pid(pid).object_id}/",
+                f"content/sha1_git:{_get_swhid(swhid).object_id}/",
                 http_method="head",
                 **req_args,
             )
         )
 
-    def directory_exists(self, pid: PIDish, **req_args) -> bool:
+    def directory_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a directory object exists in the archive
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.head()
 
         Raises:
@@ -401,15 +405,17 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"directory/{_get_pid(pid).object_id}/", http_method="head", **req_args
+                f"directory/{_get_swhid(swhid).object_id}/",
+                http_method="head",
+                **req_args,
             )
         )
 
-    def revision_exists(self, pid: PIDish, **req_args) -> bool:
+    def revision_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a revision object exists in the archive
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.head()
 
         Raises:
@@ -418,15 +424,17 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"revision/{_get_pid(pid).object_id}/", http_method="head", **req_args
+                f"revision/{_get_swhid(swhid).object_id}/",
+                http_method="head",
+                **req_args,
             )
         )
 
-    def release_exists(self, pid: PIDish, **req_args) -> bool:
+    def release_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a release object exists in the archive
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.head()
 
         Raises:
@@ -435,15 +443,17 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"release/{_get_pid(pid).object_id}/", http_method="head", **req_args
+                f"release/{_get_swhid(swhid).object_id}/",
+                http_method="head",
+                **req_args,
             )
         )
 
-    def snapshot_exists(self, pid: PIDish, **req_args) -> bool:
+    def snapshot_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a snapshot object exists in the archive
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.head()
 
         Raises:
@@ -452,15 +462,17 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"snapshot/{_get_pid(pid).object_id}/", http_method="head", **req_args
+                f"snapshot/{_get_swhid(swhid).object_id}/",
+                http_method="head",
+                **req_args,
             )
         )
 
-    def content_raw(self, pid: PIDish, **req_args) -> Generator[bytes, None, None]:
+    def content_raw(self, swhid: SWHIDish, **req_args) -> Iterator[bytes]:
         """Iterate over the raw content of a content object
 
         Args:
-            pid: object identifier
+            swhid: object persistent identifier
             req_args: extra keyword arguments for requests.get()
 
         Raises:
@@ -468,7 +480,9 @@ class WebAPIClient:
 
         """
         r = self._call(
-            f"content/sha1_git:{_get_pid(pid).object_id}/raw/", stream=True, **req_args
+            f"content/sha1_git:{_get_swhid(swhid).object_id}/raw/",
+            stream=True,
+            **req_args,
         )
         r.raise_for_status()
 
