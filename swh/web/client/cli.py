@@ -7,11 +7,12 @@
 # control
 import click
 from click.core import Context
+from swh.core.cli import swh as swh_cli_group
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
-@click.group(name="auth", context_settings=CONTEXT_SETTINGS)
+@swh_cli_group.group(name="auth", context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--oidc-server-url",
     "oidc_server_url",
