@@ -1,0 +1,10 @@
+click
+python-dateutil
+requests
+swh.core>=0.3
+swh.model
+
+[testing]
+pytest
+pytest-mock
+requests_mock

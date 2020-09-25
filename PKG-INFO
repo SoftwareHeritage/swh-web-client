@@ -1,0 +1,48 @@
+Metadata-Version: 2.1
+Name: swh.web.client
+Version: 0.2.0
+Summary: Software Heritage Web client
+Home-page: https://forge.softwareheritage.org/source/swh-web-client/
+Author: Software Heritage developers
+Author-email: swh-devel@inria.fr
+License: UNKNOWN
+Project-URL: Bug Reports, https://forge.softwareheritage.org/maniphest
+Project-URL: Funding, https://www.softwareheritage.org/donate
+Project-URL: Source, https://forge.softwareheritage.org/source/swh-web-client
+Project-URL: Documentation, https://docs.softwareheritage.org/devel/swh-web-client/
+Description: Software Heritage - Web client
+        ==============================
+        
+        Client for Software Heritage Web applications, via their APIs.
+        
+        
+        Sample usage
+        ------------
+        
+        .. code-block:: python
+        
+           from swh.web.client.client import WebAPIClient
+           cli = WebAPIClient()
+        
+           # retrieve any archived object via its SWHID
+           cli.get('swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6')
+        
+           # same, but for specific object types
+           cli.revision('swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6')
+        
+           # get() always retrieve entire objects, following pagination
+           # WARNING: this might *not* be what you want for large objects
+           cli.get('swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a')
+        
+           # type-specific methods support explicit iteration through pages
+           next(cli.snapshot('swh:1:snp:cabcc7d7bf639bbe1cc3b41989e1806618dd5764'))
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+Classifier: Operating System :: OS Independent
+Classifier: Development Status :: 3 - Alpha
+Requires-Python: >=3.7
+Description-Content-Type: text/x-rst
+Provides-Extra: testing
