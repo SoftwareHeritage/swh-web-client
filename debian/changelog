@@ -1,5 +1,5 @@
-<module-name> (0.0.1-1) unstable; urgency=low
+swh-web-client (0.2.0-1~swh1) unstable-swh; urgency=low
 
-  *
+  * Bootstrap debian packaging for swh-web-client
 
- -- AUTHOR-NAME <AUTHOR-EMAIL>  <UTC-DATE>
+ -- Nicolas Dandrimont <olasd@debian.org>  Fri, 25 Sep 2020 19:35:20 +0200
