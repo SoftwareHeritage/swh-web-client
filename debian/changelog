@@ -1,8 +1,14 @@
-swh-web-client (0.2.0-1~swh1~bpo10+1) buster-swh; urgency=medium
+swh-web-client (0.2.1-1~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * New upstream release 0.2.1     - (tagged by Stefano Zacchiroli
+    <zack@upsilon.cc> on 2020-10-06 17:00:10 +0200)
+  * Upstream changes:     - v0.2.1 / 2020-10-06     - * client: make API
+    response typify-ing optional     - * tox.ini: pin black to the pre-
+    commit version (19.10b0) to avoid flip-flops     - * Remove stale
+    Debian packaging from the master branch     - * Run isort after the
+    CLI import changes
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 25 Sep 2020 17:43:14 +0000
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 06 Oct 2020 15:02:31 +0000
 
 swh-web-client (0.2.0-1~swh1) unstable-swh; urgency=low
 
