@@ -7,6 +7,7 @@
 # control
 import click
 from click.core import Context
+
 from swh.core.cli import swh as swh_cli_group
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])

@@ -3,9 +3,13 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import json
+
 from dateutil.parser import parse as parse_date
 
 from swh.model.identifiers import parse_swhid
+
+from .api_data import API_DATA
 
 
 def test_get_content(web_api_client, web_api_mock):
@@ -143,3 +147,28 @@ def test_get_visits(web_api_client, web_api_mock):
     assert visits[0]["snapshot"] is None
     snapshot_swhid = "swh:1:snp:456550ea74af4e2eecaa406629efaaf0b9b5f976"
     assert visits[7]["snapshot"] == parse_swhid(snapshot_swhid)
+
+
+def test_get_json(web_api_client, web_api_mock):
+    swhids = [
+        "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
+        "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
+        "swh:1:rel:b9db10d00835e9a43e2eebef2db1d04d4ae82342",
+        "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
+        "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
+    ]
+
+    for swhid in swhids:
+        actual = web_api_client.get(swhid, typify=False)
+        expected = None
+        # Fetch raw JSON data from the generated API_DATA
+        for url, data in API_DATA.items():
+            object_id = swhid[len("swh:1:XXX:") :]
+            if object_id in url:
+                expected = json.loads(data)
+                # Special case: snapshots response differs slightly from the Web API
+                if swhid.startswith("swh:1:snp:"):
+                    expected = expected["branches"]
+                break
+
+        assert actual == expected

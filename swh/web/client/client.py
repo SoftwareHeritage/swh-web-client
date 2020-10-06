@@ -57,7 +57,7 @@ def _get_swhid(swhidish: SWHIDish) -> SWHID:
         return swhidish
 
 
-def typify(data: Any, obj_type: str) -> Any:
+def typify_json(data: Any, obj_type: str) -> Any:
     """Type API responses using pythonic types where appropriate
 
     The following conversions are performed:
@@ -147,7 +147,7 @@ class WebAPIClient:
         self.api_path = u.path
         self.bearer_token = bearer_token
 
-        self._getters: Dict[str, Callable[[SWHIDish], Any]] = {
+        self._getters: Dict[str, Callable[[SWHIDish, bool], Any]] = {
             CONTENT: self.content,
             DIRECTORY: self.directory,
             RELEASE: self.release,
@@ -190,18 +190,18 @@ class WebAPIClient:
 
         return r
 
-    def _get_snapshot(self, swhid: SWHIDish) -> Dict[str, Any]:
+    def _get_snapshot(self, swhid: SWHIDish, typify: bool = True) -> Dict[str, Any]:
         """Analogous to self.snapshot(), but zipping through partial snapshots,
         merging them together before returning
 
         """
         snapshot = {}
-        for snp in self.snapshot(swhid):
+        for snp in self.snapshot(swhid, typify):
             snapshot.update(snp)
 
         return snapshot
 
-    def get(self, swhid: SWHIDish, **req_args) -> Any:
+    def get(self, swhid: SWHIDish, typify: bool = True, **req_args) -> Any:
         """Retrieve information about an object of any kind
 
         Dispatcher method over the more specific methods content(),
@@ -214,9 +214,11 @@ class WebAPIClient:
         """
 
         swhid_ = _get_swhid(swhid)
-        return self._getters[swhid_.object_type](swhid_)
+        return self._getters[swhid_.object_type](swhid_, typify)
 
-    def iter(self, swhid: SWHIDish, **req_args) -> Iterator[Dict[str, Any]]:
+    def iter(
+        self, swhid: SWHIDish, typify: bool = True, **req_args
+    ) -> Iterator[Dict[str, Any]]:
         """Stream over the information about an object of any kind
 
         Streaming variant of get()
@@ -225,89 +227,103 @@ class WebAPIClient:
         swhid_ = _get_swhid(swhid)
         obj_type = swhid_.object_type
         if obj_type == SNAPSHOT:
-            yield from self.snapshot(swhid_)
+            yield from self.snapshot(swhid_, typify)
         elif obj_type == REVISION:
-            yield from [self.revision(swhid_)]
+            yield from [self.revision(swhid_, typify)]
         elif obj_type == RELEASE:
-            yield from [self.release(swhid_)]
+            yield from [self.release(swhid_, typify)]
         elif obj_type == DIRECTORY:
-            yield from self.directory(swhid_)
+            yield from self.directory(swhid_, typify)
         elif obj_type == CONTENT:
-            yield from [self.content(swhid_)]
+            yield from [self.content(swhid_, typify)]
         else:
             raise ValueError(f"invalid object type: {obj_type}")
 
-    def content(self, swhid: SWHIDish, **req_args) -> Dict[str, Any]:
+    def content(
+        self, swhid: SWHIDish, typify: bool = True, **req_args
+    ) -> Dict[str, Any]:
         """Retrieve information about a content object
 
         Args:
             swhid: object persistent identifier
+            typify: if True, convert return value to pythonic types wherever
+                possible, otherwise return raw JSON types (default: True)
             req_args: extra keyword arguments for requests.get()
 
         Raises:
           requests.HTTPError: if HTTP request fails
 
         """
-        return typify(
-            self._call(
-                f"content/sha1_git:{_get_swhid(swhid).object_id}/", **req_args
-            ).json(),
-            CONTENT,
-        )
+        json = self._call(
+            f"content/sha1_git:{_get_swhid(swhid).object_id}/", **req_args
+        ).json()
+        return typify_json(json, CONTENT) if typify else json
 
-    def directory(self, swhid: SWHIDish, **req_args) -> List[Dict[str, Any]]:
+    def directory(
+        self, swhid: SWHIDish, typify: bool = True, **req_args
+    ) -> List[Dict[str, Any]]:
         """Retrieve information about a directory object
 
         Args:
             swhid: object persistent identifier
+            typify: if True, convert return value to pythonic types wherever
+                possible, otherwise return raw JSON types (default: True)
             req_args: extra keyword arguments for requests.get()
 
         Raises:
           requests.HTTPError: if HTTP request fails
 
         """
-        return typify(
-            self._call(f"directory/{_get_swhid(swhid).object_id}/", **req_args).json(),
-            DIRECTORY,
-        )
+        json = self._call(
+            f"directory/{_get_swhid(swhid).object_id}/", **req_args
+        ).json()
+        return typify_json(json, DIRECTORY) if typify else json
 
-    def revision(self, swhid: SWHIDish, **req_args) -> Dict[str, Any]:
+    def revision(
+        self, swhid: SWHIDish, typify: bool = True, **req_args
+    ) -> Dict[str, Any]:
         """Retrieve information about a revision object
 
         Args:
             swhid: object persistent identifier
+            typify: if True, convert return value to pythonic types wherever
+                possible, otherwise return raw JSON types (default: True)
             req_args: extra keyword arguments for requests.get()
 
         Raises:
           requests.HTTPError: if HTTP request fails
 
         """
-        return typify(
-            self._call(f"revision/{_get_swhid(swhid).object_id}/", **req_args).json(),
-            REVISION,
-        )
+        json = self._call(f"revision/{_get_swhid(swhid).object_id}/", **req_args).json()
+        return typify_json(json, REVISION) if typify else json
 
-    def release(self, swhid: SWHIDish, **req_args) -> Dict[str, Any]:
+    def release(
+        self, swhid: SWHIDish, typify: bool = True, **req_args
+    ) -> Dict[str, Any]:
         """Retrieve information about a release object
 
         Args:
             swhid: object persistent identifier
+            typify: if True, convert return value to pythonic types wherever
+                possible, otherwise return raw JSON types (default: True)
             req_args: extra keyword arguments for requests.get()
 
         Raises:
           requests.HTTPError: if HTTP request fails
 
         """
-        return typify(
-            self._call(f"release/{_get_swhid(swhid).object_id}/", **req_args).json(),
-            RELEASE,
-        )
+        json = self._call(f"release/{_get_swhid(swhid).object_id}/", **req_args).json()
+        return typify_json(json, RELEASE) if typify else json
 
-    def snapshot(self, swhid: SWHIDish, **req_args) -> Iterator[Dict[str, Any]]:
+    def snapshot(
+        self, swhid: SWHIDish, typify: bool = True, **req_args
+    ) -> Iterator[Dict[str, Any]]:
         """Retrieve information about a snapshot object
 
         Args:
             swhid: object persistent identifier
+            typify: if True, convert return value to pythonic types wherever
+                possible, otherwise return raw JSON types (default: True)
             req_args: extra keyword arguments for requests.get()
 
         Returns:
@@ -325,7 +341,8 @@ class WebAPIClient:
 
         while not done:
             r = self._call(query, http_method="get", **req_args)
-            yield typify(r.json()["branches"], SNAPSHOT)
+            json = r.json()["branches"]
+            yield typify_json(json, SNAPSHOT) if typify else json
             if "next" in r.links and "url" in r.links["next"]:
                 query = r.links["next"]["url"]
             else:
@@ -336,6 +353,7 @@ class WebAPIClient:
         origin: str,
         per_page: Optional[int] = None,
         last_visit: Optional[int] = None,
+        typify: bool = True,
         **req_args,
     ) -> Iterator[Dict[str, Any]]:
         """List visits of an origin
@@ -344,6 +362,8 @@ class WebAPIClient:
             origin: the URL of a software origin
             per_page: the number of visits to list
             last_visit: visit to start listing from
+            typify: if True, convert return value to pythonic types wherever
+                possible, otherwise return raw JSON types (default: True)
             req_args: extra keyword arguments for requests.get()
 
         Returns:
@@ -366,7 +386,7 @@ class WebAPIClient:
 
         while not done:
             r = self._call(query, http_method="get", params=params, **req_args)
-            yield from [typify(v, ORIGIN_VISIT) for v in r.json()]
+            yield from [typify_json(v, ORIGIN_VISIT) if typify else v for v in r.json()]
             if "next" in r.links and "url" in r.links["next"]:
                 params = []
                 query = r.links["next"]["url"]
