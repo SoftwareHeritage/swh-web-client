@@ -7,7 +7,8 @@ import json
 
 from dateutil.parser import parse as parse_date
 
-from swh.model.identifiers import parse_swhid
+from swh.model.identifiers import REVISION, parse_swhid
+from swh.web.client.client import typify_json
 
 from .api_data import API_DATA
 
@@ -172,3 +173,17 @@ def test_get_json(web_api_client, web_api_mock):
                 break
 
         assert actual == expected
+
+
+def test_typify_json_minimal_revision():
+    revision_data = {
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "directory": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "date": None,
+        "committer_date": None,
+        "parents": [],
+    }
+    revision_typed = typify_json(revision_data, REVISION)
+    pid = "swh:1:rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    assert revision_typed["id"] == parse_swhid(pid)
+    assert revision_typed["date"] is None

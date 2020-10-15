@@ -28,6 +28,7 @@ conversions and pagination.
 
 """
 
+from datetime import datetime
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 from urllib.parse import urlparse
 
@@ -67,11 +68,16 @@ def typify_json(data: Any, obj_type: str) -> Any:
 
     """
 
-    def to_swhid(object_type, s):
+    def to_swhid(object_type: str, s: Any) -> SWHID:
         return SWHID(object_type=object_type, object_id=s)
 
-    def to_date(s):
-        return dateutil.parser.parse(s)
+    def to_date(date: str) -> datetime:
+        return dateutil.parser.parse(date)
+
+    def to_optional_date(date: Optional[str]) -> Optional[datetime]:
+        return None if date is None else to_date(date)
+
+    # The date attribute is optional for Revision and Release object
 
     def obj_type_of_entry_type(s):
         if s == "file":
@@ -92,12 +98,12 @@ def typify_json(data: Any, obj_type: str) -> Any:
         data["id"] = to_swhid(obj_type, data["id"])
         data["directory"] = to_swhid(DIRECTORY, data["directory"])
         for key in ("date", "committer_date"):
-            data[key] = to_date(data[key])
+            data[key] = to_optional_date(data[key])
         for parent in data["parents"]:
             parent["id"] = to_swhid(REVISION, parent["id"])
     elif obj_type == RELEASE:
         data["id"] = to_swhid(obj_type, data["id"])
-        data["date"] = to_date(data["date"])
+        data["date"] = to_optional_date(data["date"])
         data["target"] = to_swhid(data["target_type"], data["target"])
     elif obj_type == DIRECTORY:
         dir_swhid = None
