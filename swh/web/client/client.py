@@ -189,6 +189,9 @@ class WebAPIClient:
         if http_method == "get":
             r = requests.get(url, **req_args, headers=headers)
             r.raise_for_status()
+        elif http_method == "post":
+            r = requests.post(url, **req_args, headers=headers)
+            r.raise_for_status()
         elif http_method == "head":
             r = requests.head(url, **req_args, headers=headers)
         else:
@@ -398,6 +401,28 @@ class WebAPIClient:
                 query = r.links["next"]["url"]
             else:
                 done = True
+
+    def known(
+        self, swhids: Iterator[SWHIDish], **req_args
+    ) -> Dict[SWHID, Dict[Any, Any]]:
+        """Verify the presence in the archive of several objects at once
+
+        Args:
+            swhids: SWHIDs of the objects to verify
+
+        Returns:
+            a dictionary mapping object SWHIDs to archive information about them; the
+            dictionary includes a "known" key associated to a boolean value that is true
+            if and only if the object is known to the archive
+
+        Raises:
+            requests.HTTPError: if HTTP request fails
+
+        """
+        r = self._call(
+            "known/", http_method="post", json=list(map(str, swhids)), **req_args
+        )
+        return {parse_swhid(k): v for k, v in r.json().items()}
 
     def content_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a content object exists in the archive

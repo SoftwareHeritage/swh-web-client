@@ -29,6 +29,19 @@ def web_api_mock(requests_mock):
                 "Link": f'<{API_URL}/origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10>; rel="next"'  # NoQA: E501
             }
         requests_mock.get(f"{API_URL}/{api_call}", text=data, headers=headers)
+
+    def known_callback(request, context):
+        known_swhids = [
+            "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
+            "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
+            "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
+            "swh:1:rel:208f61cc7a5dbc9879ae6e5c2f95891e270f09ef",
+            "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
+        ]
+        return {swhid: {"known": swhid in known_swhids} for swhid in request.json()}
+
+    requests_mock.register_uri("POST", f"{API_URL}/known/", json=known_callback)
+
     return requests_mock
 
 

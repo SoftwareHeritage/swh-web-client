@@ -150,6 +150,25 @@ def test_get_visits(web_api_client, web_api_mock):
     assert visits[7]["snapshot"] == parse_swhid(snapshot_swhid)
 
 
+def test_known(web_api_client, web_api_mock):
+    # full list of SWHIDs for which we mock a {known: True} answer
+    known_swhids = [
+        "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
+        "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
+        "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
+        "swh:1:rel:208f61cc7a5dbc9879ae6e5c2f95891e270f09ef",
+        "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
+    ]
+    bogus_swhids = [s[:20] + "c0ffee" + s[26:] for s in known_swhids]
+    all_swhids = known_swhids + bogus_swhids
+
+    known_res = web_api_client.known(all_swhids)
+
+    assert {str(k) for k in known_res} == set(all_swhids)
+    for swhid, info in known_res.items():
+        assert info["known"] == (str(swhid) in known_swhids)
+
+
 def test_get_json(web_api_client, web_api_mock):
     swhids = [
         "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
