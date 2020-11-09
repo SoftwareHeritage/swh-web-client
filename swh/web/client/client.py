@@ -28,6 +28,7 @@ conversions and pagination.
 
 """
 
+from datetime import datetime
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 from urllib.parse import urlparse
 
@@ -67,11 +68,16 @@ def typify_json(data: Any, obj_type: str) -> Any:
 
     """
 
-    def to_swhid(object_type, s):
+    def to_swhid(object_type: str, s: Any) -> SWHID:
         return SWHID(object_type=object_type, object_id=s)
 
-    def to_date(s):
-        return dateutil.parser.parse(s)
+    def to_date(date: str) -> datetime:
+        return dateutil.parser.parse(date)
+
+    def to_optional_date(date: Optional[str]) -> Optional[datetime]:
+        return None if date is None else to_date(date)
+
+    # The date attribute is optional for Revision and Release object
 
     def obj_type_of_entry_type(s):
         if s == "file":
@@ -92,12 +98,12 @@ def typify_json(data: Any, obj_type: str) -> Any:
         data["id"] = to_swhid(obj_type, data["id"])
         data["directory"] = to_swhid(DIRECTORY, data["directory"])
         for key in ("date", "committer_date"):
-            data[key] = to_date(data[key])
+            data[key] = to_optional_date(data[key])
         for parent in data["parents"]:
             parent["id"] = to_swhid(REVISION, parent["id"])
     elif obj_type == RELEASE:
         data["id"] = to_swhid(obj_type, data["id"])
-        data["date"] = to_date(data["date"])
+        data["date"] = to_optional_date(data["date"])
         data["target"] = to_swhid(data["target_type"], data["target"])
     elif obj_type == DIRECTORY:
         dir_swhid = None
@@ -182,6 +188,9 @@ class WebAPIClient:
 
         if http_method == "get":
             r = requests.get(url, **req_args, headers=headers)
+            r.raise_for_status()
+        elif http_method == "post":
+            r = requests.post(url, **req_args, headers=headers)
             r.raise_for_status()
         elif http_method == "head":
             r = requests.head(url, **req_args, headers=headers)
@@ -392,6 +401,28 @@ class WebAPIClient:
                 query = r.links["next"]["url"]
             else:
                 done = True
+
+    def known(
+        self, swhids: Iterator[SWHIDish], **req_args
+    ) -> Dict[SWHID, Dict[Any, Any]]:
+        """Verify the presence in the archive of several objects at once
+
+        Args:
+            swhids: SWHIDs of the objects to verify
+
+        Returns:
+            a dictionary mapping object SWHIDs to archive information about them; the
+            dictionary includes a "known" key associated to a boolean value that is true
+            if and only if the object is known to the archive
+
+        Raises:
+            requests.HTTPError: if HTTP request fails
+
+        """
+        r = self._call(
+            "known/", http_method="post", json=list(map(str, swhids)), **req_args
+        )
+        return {parse_swhid(k): v for k, v in r.json().items()}
 
     def content_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a content object exists in the archive

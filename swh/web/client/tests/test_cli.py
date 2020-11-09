@@ -20,31 +20,35 @@ oidc_profile = {
 }
 
 
-def test_auth_login(mocker):
+def test_auth_generate_token(mocker):
     mock_getpass = mocker.patch("getpass.getpass")
     mock_getpass.return_value = "password"
     mock_oidc_session = mocker.patch("swh.web.client.auth.OpenIDConnectSession")
     mock_login = mock_oidc_session.return_value.login
     mock_login.return_value = oidc_profile
 
-    result = runner.invoke(auth, ["login", "username"], input="password\n")
-    assert result.exit_code == 0
-    assert result.output[:-1] == oidc_profile["refresh_token"]
+    for command in ("generate-token", "login"):
+        mock_login.side_effect = None
+        result = runner.invoke(auth, [command, "username"], input="password\n")
+        assert result.exit_code == 0
+        assert oidc_profile["refresh_token"] in result.output
 
-    mock_login.side_effect = Exception("Auth error")
+        mock_login.side_effect = Exception("Auth error")
 
-    result = runner.invoke(auth, ["login", "username"], input="password\n")
-    assert result.exit_code == 1
+        result = runner.invoke(auth, [command, "username"], input="password\n")
+        assert result.exit_code == 1
 
 
-def test_auth_logout(mocker):
+def test_auth_revoke_token(mocker):
 
     mock_oidc_session = mocker.patch("swh.web.client.auth.OpenIDConnectSession")
     mock_logout = mock_oidc_session.return_value.logout
 
-    result = runner.invoke(auth, ["logout", oidc_profile["refresh_token"]])
-    assert result.exit_code == 0
+    for command in ("revoke-token", "logout"):
+        mock_logout.side_effect = None
+        result = runner.invoke(auth, [command, oidc_profile["refresh_token"]])
+        assert result.exit_code == 0
 
-    mock_logout.side_effect = Exception("Auth error")
-    result = runner.invoke(auth, ["logout", oidc_profile["refresh_token"]])
-    assert result.exit_code == 1
+        mock_logout.side_effect = Exception("Auth error")
+        result = runner.invoke(auth, [command, oidc_profile["refresh_token"]])
+        assert result.exit_code == 1

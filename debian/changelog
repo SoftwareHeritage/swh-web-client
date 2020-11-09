@@ -1,8 +1,13 @@
-swh-web-client (0.2.1-1~swh1~bpo10+1) buster-swh; urgency=medium
+swh-web-client (0.2.2-1~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * New upstream release 0.2.2     - (tagged by Stefano Zacchiroli
+    <zack@upsilon.cc> on 2020-11-09 20:37:26 +0100)
+  * Upstream changes:     - v0.2.2 / 2020-11-09     - * client: bind
+    /known API endpoint to verify for object presence     - * cli: Use
+    more explicit naming for auth subcommands     - * client: support
+    optional date in Revision and Release
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 06 Oct 2020 15:03:19 +0000
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Mon, 09 Nov 2020 19:38:57 +0000
 
 swh-web-client (0.2.1-1~swh1) unstable-swh; urgency=medium
 
