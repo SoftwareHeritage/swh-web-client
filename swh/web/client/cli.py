@@ -54,17 +54,17 @@ def auth(ctx: Context, oidc_server_url: str, realm_name: str, client_id: str):
     )
 
 
-@auth.command("login")
+@auth.command("generate-token")
 @click.argument("username")
 @click.pass_context
-def login(ctx: Context, username: str):
+def generate_token(ctx: Context, username: str):
     """
-    Login and create new offline OpenID Connect session.
+    Generate a new bearer token for Web API authentication.
 
     Login with USERNAME, create a new OpenID Connect session and get
     bearer token.
 
-    User will be prompted for his password and tokens will be printed
+    User will be prompted for his password and token will be printed
     to standard output.
 
     The created OpenID Connect session is an offline one so the provided
@@ -82,16 +82,36 @@ def login(ctx: Context, username: str):
         print(oidc_info)
 
 
-@auth.command("logout")
+@auth.command("login", deprecated=True)
+@click.argument("username")
+@click.pass_context
+def login(ctx: Context, username: str):
+    """
+    Alias for 'generate-token'
+    """
+    ctx.forward(generate_token)
+
+
+@auth.command("revoke-token")
 @click.argument("token")
 @click.pass_context
-def logout(ctx: Context, token: str):
+def revoke_token(ctx: Context, token: str):
     """
-    Logout from an offline OpenID Connect session.
+    Revoke a bearer token used for Web API authentication.
 
     Use TOKEN to logout from an offline OpenID Connect session.
 
     The token is definitely revoked after that operation.
     """
     ctx.obj["oidc_session"].logout(token)
-    print("Successfully logged out from OpenID Connect session")
+    print("Token successfully revoked.")
+
+
+@auth.command("logout", deprecated=True)
+@click.argument("token")
+@click.pass_context
+def logout(ctx: Context, token: str):
+    """
+    Alias for 'revoke-token'
+    """
+    ctx.forward(revoke_token)
