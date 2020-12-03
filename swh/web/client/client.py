@@ -519,6 +519,21 @@ class WebAPIClient:
             )
         )
 
+    def origin_exists(self, origin: str, **req_args) -> bool:
+        """Check if an origin object exists in the archive
+
+        Args:
+            origin: the URL of a software origin
+            req_args: extra keyword arguments for requests.head()
+
+        Raises:
+          requests.HTTPError: if HTTP request fails
+
+        """
+        return bool(
+            self._call(f"origin/{origin}/get/", http_method="head", **req_args,)
+        )
+
     def content_raw(self, swhid: SWHIDish, **req_args) -> Iterator[bytes]:
         """Iterate over the raw content of a content object
 
