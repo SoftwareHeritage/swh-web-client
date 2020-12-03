@@ -1,3 +1,12 @@
+swh-web-client (0.2.3-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.2.3     - (tagged by Nicolas Dandrimont
+    <nicolas@dandrimont.eu> on 2020-12-03 15:33:13 +0100)
+  * Upstream changes:     - Release swh.web.client 0.2.3     - Add an
+    origin_exists method
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 03 Dec 2020 14:35:00 +0000
+
 swh-web-client (0.2.2-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.2.2     - (tagged by Stefano Zacchiroli
