@@ -3,6 +3,8 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+from typing import List
+
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 import click
@@ -115,3 +117,72 @@ def logout(ctx: Context, token: str):
     Alias for 'revoke-token'
     """
     ctx.forward(revoke_token)
+
+
+@swh_cli_group.group(name="web", context_settings=CONTEXT_SETTINGS)
+@click.pass_context
+def web(ctx: Context):
+    """Software Heritage web client"""
+
+    from swh.web.client.client import WebAPIClient
+
+    ctx.ensure_object(dict)
+    # TODO (T2872): add configuration file for the web client
+    ctx.obj["client"] = WebAPIClient()
+
+
+@web.command(name="search")
+@click.argument(
+    "query", required=True, nargs=-1, metavar="KEYWORD...",
+)
+@click.option(
+    "--limit",
+    "limit",
+    type=int,
+    default=10,
+    show_default=True,
+    help="maximum number of results to show",
+)
+@click.option(
+    "--only-visited",
+    is_flag=True,
+    show_default=True,
+    help="if true, only return origins with at least one visit by Software heritage",
+)
+@click.option(
+    "--url-encode/--no-url-encode",
+    default=False,
+    show_default=True,
+    help="if true, escape origin URLs in results with percent encoding (RFC 3986)",
+)
+@click.pass_context
+def search(
+    ctx: Context, query: List[str], limit: int, only_visited: bool, url_encode: bool,
+):
+    """Search a query (as a list of keywords) into the Software Heritage
+    archive.
+
+    The search results are printed to CSV format, one result per line, using a
+    tabulation as the field delimiter.
+    """
+
+    import logging
+    import sys
+    import urllib.parse
+
+    import requests
+
+    client = ctx.obj["client"]
+    keywords = " ".join(query)
+    try:
+        results = client.origin_search(keywords, limit, only_visited)
+        for result in results:
+            if url_encode:
+                result["url"] = urllib.parse.quote_plus(result["url"])
+
+            print("\t".join(result.values()))
+    except requests.HTTPError as err:
+        logging.error("Could not retrieve search results: %s", err)
+    except (BrokenPipeError, IOError):
+        # Get rid of the BrokenPipeError message
+        sys.stderr.close()
