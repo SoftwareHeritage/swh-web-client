@@ -44,6 +44,7 @@ from swh.model.identifiers import (
     SWHID,
     parse_swhid,
 )
+from swh.web.client.cli import DEFAULT_CONFIG
 
 SWHIDish = Union[SWHID, str]
 
@@ -134,16 +135,15 @@ class WebAPIClient:
 
     def __init__(
         self,
-        api_url: str = "https://archive.softwareheritage.org/api/1",
-        bearer_token: Optional[str] = None,
+        api_url: str = DEFAULT_CONFIG["api_url"],
+        bearer_token: Optional[str] = DEFAULT_CONFIG["bearer_token"],
     ):
         """Create a client for the Software Heritage Web API
 
         See: https://archive.softwareheritage.org/api/
 
         Args:
-            api_url: base URL for API calls (default:
-                "https://archive.softwareheritage.org/api/1")
+            api_url: base URL for API calls
             bearer_token: optional bearer token to do authenticated API calls
         """
         api_url = api_url.rstrip("/")
