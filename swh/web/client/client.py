@@ -44,6 +44,7 @@ from swh.model.identifiers import (
     SWHID,
     parse_swhid,
 )
+from swh.web.client.cli import DEFAULT_CONFIG
 
 SWHIDish = Union[SWHID, str]
 
@@ -134,16 +135,15 @@ class WebAPIClient:
 
     def __init__(
         self,
-        api_url: str = "https://archive.softwareheritage.org/api/1",
-        bearer_token: Optional[str] = None,
+        api_url: str = DEFAULT_CONFIG["api_url"],
+        bearer_token: Optional[str] = DEFAULT_CONFIG["bearer_token"],
     ):
         """Create a client for the Software Heritage Web API
 
         See: https://archive.softwareheritage.org/api/
 
         Args:
-            api_url: base URL for API calls (default:
-                "https://archive.softwareheritage.org/api/1")
+            api_url: base URL for API calls
             bearer_token: optional bearer token to do authenticated API calls
         """
         api_url = api_url.rstrip("/")
@@ -553,3 +553,52 @@ class WebAPIClient:
         r.raise_for_status()
 
         yield from r.iter_content(chunk_size=None, decode_unicode=False)
+
+    def origin_search(
+        self,
+        query: str,
+        limit: Optional[int] = None,
+        with_visit: bool = False,
+        **req_args,
+    ) -> Iterator[Dict[str, Any]]:
+        """List origin search results
+
+        Args:
+            query: search keywords
+            limit: the maximum number of found origins to return
+            with_visit: if true, only return origins with at least one visit
+
+        Returns:
+            an iterator over search results
+
+        Raises:
+            requests.HTTPError: if HTTP request fails
+
+        """
+
+        params = []
+        if limit is not None:
+            params.append(("limit", limit))
+        if with_visit:
+            params.append(("with_visit", True))
+
+        done = False
+        nb_returned = 0
+        q = f"origin/search/{query}/"
+        while not done:
+            r = self._call(q, params=params, **req_args)
+            json = r.json()
+            if limit and nb_returned + len(json) > limit:
+                json = json[: limit - nb_returned]
+
+            nb_returned += len(json)
+            yield from json
+
+            if limit and nb_returned == limit:
+                done = True
+
+            if "next" in r.links and "url" in r.links["next"]:
+                params = []
+                q = r.links["next"]["url"]
+            else:
+                done = True

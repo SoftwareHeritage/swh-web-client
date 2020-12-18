@@ -150,6 +150,33 @@ def test_get_visits(web_api_client, web_api_mock):
     assert visits[7]["snapshot"] == parse_swhid(snapshot_swhid)
 
 
+def test_origin_search(web_api_client, web_api_mock):
+    limited_results = list(web_api_client.origin_search("python", limit=5))
+    assert len(limited_results) == 5
+
+    results = list(web_api_client.origin_search("foo bar baz qux", with_visit=True))
+    actual_urls = [r["url"] for r in results]
+    actual_visits = [r["origin_visits_url"] for r in results]
+    # Check *some* of the URLS since the search could return more results in the future
+    expected = [
+        (
+            "https://github.com/foo-bar-baz-qux/mygithubpage",
+            "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/mygithubpage/visits/",  # NoQA: E501
+        ),
+        (
+            "https://www.npmjs.com/package/foo-bar-baz-qux",
+            "https://archive.softwareheritage.org/api/1/origin/https://www.npmjs.com/package/foo-bar-baz-qux/visits/",  # NoQA: E501
+        ),
+        (
+            "https://bitbucket.org/foobarbazqux/rp.git",
+            "https://archive.softwareheritage.org/api/1/origin/https://bitbucket.org/foobarbazqux/rp.git/visits/",  # NoQA: E501
+        ),
+    ]
+    for (url, visit) in expected:
+        assert url in actual_urls
+        assert visit in actual_visits
+
+
 def test_known(web_api_client, web_api_mock):
     # full list of SWHIDs for which we mock a {known: True} answer
     known_swhids = [
