@@ -1,3 +1,15 @@
+swh-web-client (0.2.4-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.2.4     - (tagged by Stefano Zacchiroli
+    <zack@upsilon.cc> on 2020-12-18 17:13:44 +0100)
+  * Upstream changes:     - v0.2.4 / 2020-12-18     - * docs: index:
+    update shell examples with recent CLI changes     - * cli: add --
+    config-file option to 'swh web' group     - * cli: move 'swh auth'
+    group to 'swh web auth'     - * cli: add 'swh web search' subcommand
+    - * client: add origin_search() method
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Fri, 18 Dec 2020 16:15:21 +0000
+
 swh-web-client (0.2.3-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.2.3     - (tagged by Nicolas Dandrimont
