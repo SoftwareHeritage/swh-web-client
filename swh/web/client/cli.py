@@ -3,6 +3,9 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import os
+from typing import Any, Dict, List
+
 # WARNING: do not import unnecessary things here to keep cli startup time under
 # control
 import click
@@ -12,8 +15,118 @@ from swh.core.cli import swh as swh_cli_group
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
+# TODO (T1410): All generic config code should reside in swh.core.config
+DEFAULT_CONFIG_PATH = os.environ.get(
+    "SWH_CONFIG_FILE", os.path.join(click.get_app_dir("swh"), "global.yml")
+)
 
-@swh_cli_group.group(name="auth", context_settings=CONTEXT_SETTINGS)
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "api_url": "https://archive.softwareheritage.org/api/1",
+    "bearer_token": None,
+}
+
+
+@swh_cli_group.group(name="web", context_settings=CONTEXT_SETTINGS)
+@click.option(
+    "-C",
+    "--config-file",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False, path_type=str),
+    help=f"Configuration file (default: {DEFAULT_CONFIG_PATH})",
+)
+@click.pass_context
+def web(ctx: Context, config_file: str):
+    """Software Heritage web client"""
+
+    import logging
+
+    from swh.core import config
+    from swh.web.client.client import WebAPIClient
+
+    if not config_file:
+        config_file = DEFAULT_CONFIG_PATH
+
+    try:
+        conf = config.read_raw_config(config.config_basepath(config_file))
+        if not conf:
+            raise ValueError(f"Cannot parse configuration file: {config_file}")
+
+        if config_file == DEFAULT_CONFIG_PATH:
+            try:
+                conf = conf["swh"]["web"]["client"]
+            except KeyError:
+                pass
+
+        # recursive merge not done by config.read
+        conf = config.merge_configs(DEFAULT_CONFIG, conf)
+    except Exception:
+        logging.warning(
+            "Using default configuration (cannot load custom one)", exc_info=True
+        )
+        conf = DEFAULT_CONFIG
+
+    ctx.ensure_object(dict)
+    ctx.obj["client"] = WebAPIClient(conf["api_url"], conf["bearer_token"])
+
+
+@web.command(name="search")
+@click.argument(
+    "query", required=True, nargs=-1, metavar="KEYWORD...",
+)
+@click.option(
+    "--limit",
+    "limit",
+    type=int,
+    default=10,
+    show_default=True,
+    help="maximum number of results to show",
+)
+@click.option(
+    "--only-visited",
+    is_flag=True,
+    show_default=True,
+    help="if true, only return origins with at least one visit by Software heritage",
+)
+@click.option(
+    "--url-encode/--no-url-encode",
+    default=False,
+    show_default=True,
+    help="if true, escape origin URLs in results with percent encoding (RFC 3986)",
+)
+@click.pass_context
+def search(
+    ctx: Context, query: List[str], limit: int, only_visited: bool, url_encode: bool,
+):
+    """Search a query (as a list of keywords) into the Software Heritage
+    archive.
+
+    The search results are printed to CSV format, one result per line, using a
+    tabulation as the field delimiter.
+    """
+
+    import logging
+    import sys
+    import urllib.parse
+
+    import requests
+
+    client = ctx.obj["client"]
+    keywords = " ".join(query)
+    try:
+        results = client.origin_search(keywords, limit, only_visited)
+        for result in results:
+            if url_encode:
+                result["url"] = urllib.parse.quote_plus(result["url"])
+
+            print("\t".join(result.values()))
+    except requests.HTTPError as err:
+        logging.error("Could not retrieve search results: %s", err)
+    except (BrokenPipeError, IOError):
+        # Get rid of the BrokenPipeError message
+        sys.stderr.close()
+
+
+@web.group(name="auth", context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--oidc-server-url",
     "oidc_server_url",

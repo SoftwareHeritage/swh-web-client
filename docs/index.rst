@@ -17,8 +17,8 @@ To get this token, a dedicated CLI tool is made available when installing
 
 .. code-block:: text
 
-  $ swh auth
-  Usage: swh auth [OPTIONS] COMMAND [ARGS]...
+  $ swh web auth
+  Usage: swh web auth [OPTIONS] COMMAND [ARGS]...
 
     Authenticate Software Heritage users with OpenID Connect.
 
@@ -39,6 +39,8 @@ To get this token, a dedicated CLI tool is made available when installing
 
   Commands:
     generate-token  Generate a new bearer token for Web API authentication.
+    login           Alias for 'generate-token'
+    logout          Alias for 'revoke-token'
     revoke-token    Revoke a bearer token used for Web API authentication.
 
 In order to get your tokens, you need to use the ``generate-token`` subcommand of
@@ -48,7 +50,7 @@ offline session will be created and token will be dumped to standard output.
 
 .. code-block:: text
 
-  $ swh auth generate-token <username>
+  $ swh web auth generate-token <username>
   Password:
   eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJmNjMzMD...
 
@@ -66,7 +68,7 @@ class, you can activate authentication by using the following code snippet::
 
   from swh.web.client.client import WebAPIClient
 
-  TOKEN = '.......'  # Use "swh auth login" command to get it
+  TOKEN = '.......'  # Use "swh web auth login" command to get it
 
   client = WebAPIClient(bearer_token=TOKEN)
 
@@ -79,7 +81,7 @@ to perform that task.
 
 .. code-block:: text
 
-  $ swh auth revoke-token $REFRESH_TOKEN
+  $ swh web auth revoke-token $REFRESH_TOKEN
   Token successfully revoked.
 
 API Reference
