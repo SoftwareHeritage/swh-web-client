@@ -7719,4 +7719,136 @@ API_DATA = {
   }
 ]
     """,  # NoQA: E501  # NoQA: E501
+    "origin/search/foo%20bar%20baz%20qux/?with_visit=true": r"""
+[
+  {
+    "url": "https://github.com/foo-bar-baz-qux/mygithubpage",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/mygithubpage/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/foo-bar-baz-qux.github.io",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/foo-bar-baz-qux.github.io/visits/"
+  },
+  {
+    "url": "https://github.com/tunnckoCore/foo-bar-baz-qux",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/tunnckoCore/foo-bar-baz-qux/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/aml-project",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/aml-project/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/ci_test",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/ci_test/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/extreme-computing",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/extreme-computing/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/cs205-homework",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/cs205-homework/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/rstan",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/rstan/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/cs207",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/cs207/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/2015lab1",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/2015lab1/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/stan",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/stan/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/atom-script",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/atom-script/visits/"
+  },
+  {
+    "url": "https://github.com/foobarbazquxquux/gordon-test",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foobarbazquxquux/gordon-test/visits/"
+  },
+  {
+    "url": "https://github.com/foobarbazquxquux/helios",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foobarbazquxquux/helios/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/2016",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/2016/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/devtools",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/devtools/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/dplyr",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/dplyr/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/paletter",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/paletter/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/ggplot2",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/ggplot2/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/stm",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/stm/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/concept-to-clinic",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/concept-to-clinic/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/scales",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/scales/visits/"
+  },
+  {
+    "url": "https://www.npmjs.com/package/foo-bar-baz-qux",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://www.npmjs.com/package/foo-bar-baz-qux/visits/"
+  },
+  {
+    "url": "https://bitbucket.org/foobarbazqux/rp.git",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://bitbucket.org/foobarbazqux/rp.git/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/knowledge-repo",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/knowledge-repo/visits/"
+  },
+  {
+    "url": "https://github.com/foo-bar-baz-qux/EconML",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/EconML/visits/"
+  }
+]
+    """,  # NoQA: E501  # NoQA: E501
+    "origin/search/python/?limit=5": r"""
+[
+  {
+    "url": "https://github.com/neon670/python.dev",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/neon670/python.dev/visits/"
+  },
+  {
+    "url": "https://github.com/aur-archive/python-werkzeug",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/aur-archive/python-werkzeug/visits/"
+  },
+  {
+    "url": "https://github.com/jsagon/jtradutor-web-python",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/jsagon/jtradutor-web-python/visits/"
+  },
+  {
+    "url": "https://github.com/zjmwqx/ipythonCode",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/zjmwqx/ipythonCode/visits/"
+  },
+  {
+    "url": "https://github.com/knutab/Python-BSM",
+    "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/knutab/Python-BSM/visits/"
+  }
+]
+    """,  # NoQA: E501  # NoQA: E501
 }
