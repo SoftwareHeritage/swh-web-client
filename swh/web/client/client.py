@@ -35,28 +35,30 @@ from urllib.parse import urlparse
 import dateutil.parser
 import requests
 
-from swh.model.identifiers import (
-    CONTENT,
-    DIRECTORY,
-    RELEASE,
-    REVISION,
-    SNAPSHOT,
-    SWHID,
-    parse_swhid,
-)
+from swh.model.hashutil import hash_to_bytes, hash_to_hex
+from swh.model.identifiers import CoreSWHID, ObjectType
 from swh.web.client.cli import DEFAULT_CONFIG
 
-SWHIDish = Union[SWHID, str]
+SWHIDish = Union[CoreSWHID, str]
 
+
+CONTENT = "content"
+DIRECTORY = "directory"
+REVISION = "revision"
+RELEASE = "release"
+SNAPSHOT = "snapshot"
 ORIGIN_VISIT = "origin_visit"
+ORIGIN = "origin"
 
 
-def _get_swhid(swhidish: SWHIDish) -> SWHID:
-    """Parse string to SWHID if needed"""
+def _get_object_id_hex(swhidish: SWHIDish) -> str:
+    """Parse string or SWHID and return the hex value of the object_id"""
     if isinstance(swhidish, str):
-        return parse_swhid(swhidish)
+        swhid = CoreSWHID.from_string(swhidish)
     else:
-        return swhidish
+        swhid = swhidish
+
+    return hash_to_hex(swhid.object_id)
 
 
 def typify_json(data: Any, obj_type: str) -> Any:
@@ -69,8 +71,12 @@ def typify_json(data: Any, obj_type: str) -> Any:
 
     """
 
-    def to_swhid(object_type: str, s: Any) -> SWHID:
-        return SWHID(object_type=object_type, object_id=s)
+    def to_swhid(object_type: Union[str, ObjectType], s: Any) -> CoreSWHID:
+        if isinstance(object_type, str):
+            parsed_object_type = ObjectType[object_type.upper()]
+        else:
+            parsed_object_type = object_type
+        return CoreSWHID(object_type=parsed_object_type, object_id=hash_to_bytes(s))
 
     def to_date(date: str) -> datetime:
         return dateutil.parser.parse(date)
@@ -82,11 +88,11 @@ def typify_json(data: Any, obj_type: str) -> Any:
 
     def obj_type_of_entry_type(s):
         if s == "file":
-            return CONTENT
+            return ObjectType.CONTENT
         elif s == "dir":
-            return DIRECTORY
+            return ObjectType.DIRECTORY
         elif s == "rev":
-            return REVISION
+            return ObjectType.REVISION
         else:
             raise ValueError(f"invalid directory entry type: {s}")
 
@@ -119,7 +125,7 @@ def typify_json(data: Any, obj_type: str) -> Any:
     elif obj_type == ORIGIN_VISIT:
         data["date"] = to_date(data["date"])
         if data["snapshot"] is not None:
-            data["snapshot"] = to_swhid(SNAPSHOT, data["snapshot"])
+            data["snapshot"] = to_swhid("snapshot", data["snapshot"])
     else:
         raise ValueError(f"invalid object type: {obj_type}")
 
@@ -153,12 +159,12 @@ class WebAPIClient:
         self.api_path = u.path
         self.bearer_token = bearer_token
 
-        self._getters: Dict[str, Callable[[SWHIDish, bool], Any]] = {
-            CONTENT: self.content,
-            DIRECTORY: self.directory,
-            RELEASE: self.release,
-            REVISION: self.revision,
-            SNAPSHOT: self._get_snapshot,
+        self._getters: Dict[ObjectType, Callable[[SWHIDish, bool], Any]] = {
+            ObjectType.CONTENT: self.content,
+            ObjectType.DIRECTORY: self.directory,
+            ObjectType.RELEASE: self.release,
+            ObjectType.REVISION: self.revision,
+            ObjectType.SNAPSHOT: self._get_snapshot,
         }
 
     def _call(
@@ -221,9 +227,11 @@ class WebAPIClient:
         streaming.
 
         """
-
-        swhid_ = _get_swhid(swhid)
-        return self._getters[swhid_.object_type](swhid_, typify)
+        if isinstance(swhid, str):
+            obj_type = CoreSWHID.from_string(swhid).object_type
+        else:
+            obj_type = swhid.object_type
+        return self._getters[obj_type](swhid, typify)
 
     def iter(
         self, swhid: SWHIDish, typify: bool = True, **req_args
@@ -233,18 +241,20 @@ class WebAPIClient:
         Streaming variant of get()
 
         """
-        swhid_ = _get_swhid(swhid)
-        obj_type = swhid_.object_type
+        if isinstance(swhid, str):
+            obj_type = CoreSWHID.from_string(swhid).object_type
+        else:
+            obj_type = swhid.object_type
         if obj_type == SNAPSHOT:
-            yield from self.snapshot(swhid_, typify)
+            yield from self.snapshot(swhid, typify)
         elif obj_type == REVISION:
-            yield from [self.revision(swhid_, typify)]
+            yield from [self.revision(swhid, typify)]
         elif obj_type == RELEASE:
-            yield from [self.release(swhid_, typify)]
+            yield from [self.release(swhid, typify)]
         elif obj_type == DIRECTORY:
-            yield from self.directory(swhid_, typify)
+            yield from self.directory(swhid, typify)
         elif obj_type == CONTENT:
-            yield from [self.content(swhid_, typify)]
+            yield from [self.content(swhid, typify)]
         else:
             raise ValueError(f"invalid object type: {obj_type}")
 
@@ -264,7 +274,7 @@ class WebAPIClient:
 
         """
         json = self._call(
-            f"content/sha1_git:{_get_swhid(swhid).object_id}/", **req_args
+            f"content/sha1_git:{_get_object_id_hex(swhid)}/", **req_args
         ).json()
         return typify_json(json, CONTENT) if typify else json
 
@@ -283,9 +293,7 @@ class WebAPIClient:
           requests.HTTPError: if HTTP request fails
 
         """
-        json = self._call(
-            f"directory/{_get_swhid(swhid).object_id}/", **req_args
-        ).json()
+        json = self._call(f"directory/{_get_object_id_hex(swhid)}/", **req_args).json()
         return typify_json(json, DIRECTORY) if typify else json
 
     def revision(
@@ -303,7 +311,7 @@ class WebAPIClient:
           requests.HTTPError: if HTTP request fails
 
         """
-        json = self._call(f"revision/{_get_swhid(swhid).object_id}/", **req_args).json()
+        json = self._call(f"revision/{_get_object_id_hex(swhid)}/", **req_args).json()
         return typify_json(json, REVISION) if typify else json
 
     def release(
@@ -321,7 +329,7 @@ class WebAPIClient:
           requests.HTTPError: if HTTP request fails
 
         """
-        json = self._call(f"release/{_get_swhid(swhid).object_id}/", **req_args).json()
+        json = self._call(f"release/{_get_object_id_hex(swhid)}/", **req_args).json()
         return typify_json(json, RELEASE) if typify else json
 
     def snapshot(
@@ -346,7 +354,7 @@ class WebAPIClient:
         """
         done = False
         r = None
-        query = f"snapshot/{_get_swhid(swhid).object_id}/"
+        query = f"snapshot/{_get_object_id_hex(swhid)}/"
 
         while not done:
             r = self._call(query, http_method="get", **req_args)
@@ -404,7 +412,7 @@ class WebAPIClient:
 
     def known(
         self, swhids: Iterator[SWHIDish], **req_args
-    ) -> Dict[SWHID, Dict[Any, Any]]:
+    ) -> Dict[CoreSWHID, Dict[Any, Any]]:
         """Verify the presence in the archive of several objects at once
 
         Args:
@@ -422,7 +430,7 @@ class WebAPIClient:
         r = self._call(
             "known/", http_method="post", json=list(map(str, swhids)), **req_args
         )
-        return {parse_swhid(k): v for k, v in r.json().items()}
+        return {CoreSWHID.from_string(k): v for k, v in r.json().items()}
 
     def content_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a content object exists in the archive
@@ -437,7 +445,7 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"content/sha1_git:{_get_swhid(swhid).object_id}/",
+                f"content/sha1_git:{_get_object_id_hex(swhid)}/",
                 http_method="head",
                 **req_args,
             )
@@ -456,7 +464,7 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"directory/{_get_swhid(swhid).object_id}/",
+                f"directory/{_get_object_id_hex(swhid)}/",
                 http_method="head",
                 **req_args,
             )
@@ -475,7 +483,7 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"revision/{_get_swhid(swhid).object_id}/",
+                f"revision/{_get_object_id_hex(swhid)}/",
                 http_method="head",
                 **req_args,
             )
@@ -494,9 +502,7 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"release/{_get_swhid(swhid).object_id}/",
-                http_method="head",
-                **req_args,
+                f"release/{_get_object_id_hex(swhid)}/", http_method="head", **req_args,
             )
         )
 
@@ -513,7 +519,7 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"snapshot/{_get_swhid(swhid).object_id}/",
+                f"snapshot/{_get_object_id_hex(swhid)}/",
                 http_method="head",
                 **req_args,
             )
@@ -546,7 +552,7 @@ class WebAPIClient:
 
         """
         r = self._call(
-            f"content/sha1_git:{_get_swhid(swhid).object_id}/raw/",
+            f"content/sha1_git:{_get_object_id_hex(swhid)}/raw/",
             stream=True,
             **req_args,
         )
