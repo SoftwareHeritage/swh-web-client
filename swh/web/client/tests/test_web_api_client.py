@@ -7,14 +7,14 @@ import json
 
 from dateutil.parser import parse as parse_date
 
-from swh.model.identifiers import REVISION, parse_swhid
+from swh.model.identifiers import REVISION, CoreSWHID
 from swh.web.client.client import typify_json
 
 from .api_data import API_DATA
 
 
 def test_get_content(web_api_client, web_api_mock):
-    swhid = parse_swhid("swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1")
+    swhid = CoreSWHID.from_string("swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1")
     obj = web_api_client.get(swhid)
 
     assert obj["length"] == 151810
@@ -27,14 +27,14 @@ def test_get_content(web_api_client, web_api_mock):
 
 
 def test_get_directory(web_api_client, web_api_mock):
-    swhid = parse_swhid("swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6")
+    swhid = CoreSWHID.from_string("swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6")
     obj = web_api_client.get(swhid)
 
     assert len(obj) == 35  # number of directory entries
     assert all(map(lambda entry: entry["dir_id"] == swhid, obj))
     dir_entry = obj[0]
     assert dir_entry["type"] == "file"
-    assert dir_entry["target"] == parse_swhid(
+    assert dir_entry["target"] == CoreSWHID.from_string(
         "swh:1:cnt:58471109208922c9ee8c4b06135725f03ed16814"
     )
     assert dir_entry["name"] == ".bzrignore"
@@ -44,7 +44,7 @@ def test_get_directory(web_api_client, web_api_mock):
 
 
 def test_get_release(web_api_client, web_api_mock):
-    swhid = parse_swhid("swh:1:rel:b9db10d00835e9a43e2eebef2db1d04d4ae82342")
+    swhid = CoreSWHID.from_string("swh:1:rel:b9db10d00835e9a43e2eebef2db1d04d4ae82342")
     obj = web_api_client.get(swhid)
 
     assert obj["id"] == swhid
@@ -53,7 +53,7 @@ def test_get_release(web_api_client, web_api_mock):
     assert obj["date"] == parse_date("2013-07-06T19:34:11-04:00")
     assert obj["name"] == "0.9.9"
     assert obj["target_type"] == "revision"
-    assert obj["target"] == parse_swhid(
+    assert obj["target"] == CoreSWHID.from_string(
         "swh:1:rev:e005cb773c769436709ca6a1d625dc784dbc1636"
     )
     assert not obj["synthetic"]
@@ -62,7 +62,7 @@ def test_get_release(web_api_client, web_api_mock):
 
 
 def test_get_revision(web_api_client, web_api_mock):
-    swhid = parse_swhid("swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6")
+    swhid = CoreSWHID.from_string("swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6")
     obj = web_api_client.get(swhid)
 
     assert obj["id"] == swhid
@@ -77,10 +77,10 @@ def test_get_revision(web_api_client, web_api_mock):
     assert obj["message"].startswith("Merge branch")
     assert obj["merge"]
     assert len(obj["parents"]) == 2
-    assert obj["parents"][0]["id"] == parse_swhid(
+    assert obj["parents"][0]["id"] == CoreSWHID.from_string(
         "swh:1:rev:26307d261279861c2d9c9eca3bb38519f951bea4"
     )
-    assert obj["parents"][1]["id"] == parse_swhid(
+    assert obj["parents"][1]["id"] == CoreSWHID.from_string(
         "swh:1:rev:37fc9e08d0c4b71807a4f1ecb06112e78d91c283"
     )
 
@@ -89,23 +89,23 @@ def test_get_revision(web_api_client, web_api_mock):
 
 def test_get_snapshot(web_api_client, web_api_mock):
     # small snapshot, the one from Web API doc
-    swhid = parse_swhid("swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a")
+    swhid = CoreSWHID.from_string("swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a")
     obj = web_api_client.get(swhid)
 
     assert len(obj) == 4
     assert obj["refs/heads/master"]["target_type"] == "revision"
-    assert obj["refs/heads/master"]["target"] == parse_swhid(
+    assert obj["refs/heads/master"]["target"] == CoreSWHID.from_string(
         "swh:1:rev:83c20a6a63a7ebc1a549d367bc07a61b926cecf3"
     )
     assert obj["refs/tags/dpkt-1.7"]["target_type"] == "revision"
-    assert obj["refs/tags/dpkt-1.7"]["target"] == parse_swhid(
+    assert obj["refs/tags/dpkt-1.7"]["target"] == CoreSWHID.from_string(
         "swh:1:rev:0c9dbfbc0974ec8ac1d8253aa1092366a03633a8"
     )
 
 
 def test_iter_snapshot(web_api_client, web_api_mock):
     # large snapshot from the Linux kernel, usually spanning two pages
-    swhid = parse_swhid("swh:1:snp:cabcc7d7bf639bbe1cc3b41989e1806618dd5764")
+    swhid = CoreSWHID.from_string("swh:1:snp:cabcc7d7bf639bbe1cc3b41989e1806618dd5764")
     obj = web_api_client.snapshot(swhid)
 
     snp = {}
@@ -124,7 +124,7 @@ def test_authentication(web_api_client, web_api_mock):
 
     web_api_client.bearer_token = refresh_token
 
-    swhid = parse_swhid(f"swh:1:rel:{rel_id}")
+    swhid = CoreSWHID.from_string(f"swh:1:rel:{rel_id}")
     web_api_client.get(swhid)
 
     sent_request = web_api_mock._adapter.last_request
@@ -147,7 +147,7 @@ def test_get_visits(web_api_client, web_api_mock):
 
     assert visits[0]["snapshot"] is None
     snapshot_swhid = "swh:1:snp:456550ea74af4e2eecaa406629efaaf0b9b5f976"
-    assert visits[7]["snapshot"] == parse_swhid(snapshot_swhid)
+    assert visits[7]["snapshot"] == CoreSWHID.from_string(snapshot_swhid)
 
 
 def test_origin_search(web_api_client, web_api_mock):
@@ -231,5 +231,5 @@ def test_typify_json_minimal_revision():
     }
     revision_typed = typify_json(revision_data, REVISION)
     pid = "swh:1:rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    assert revision_typed["id"] == parse_swhid(pid)
+    assert revision_typed["id"] == CoreSWHID.from_string(pid)
     assert revision_typed["date"] is None
