@@ -1,3 +1,12 @@
+swh-web-client (0.2.5-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.2.5     - (tagged by Nicolas Dandrimont
+    <nicolas@dandrimont.eu> on 2021-03-04 18:20:23 +0100)
+  * Upstream changes:     - Release swh.web.client 0.2.5     -
+    Compatibility with swh.model 1.0.1
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 04 Mar 2021 17:22:34 +0000
+
 swh-web-client (0.2.4-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.2.4     - (tagged by Stefano Zacchiroli
