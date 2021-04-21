@@ -39,6 +39,7 @@ swh/web/client/client.py
 swh/web/client/py.typed
 swh/web/client/tests/__init__.py
 swh/web/client/tests/api_data.py
+swh/web/client/tests/api_data_static.py
 swh/web/client/tests/conftest.py
 swh/web/client/tests/gen-api-data.sh
 swh/web/client/tests/test_cli.py
