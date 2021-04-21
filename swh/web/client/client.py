@@ -608,3 +608,21 @@ class WebAPIClient:
                 q = r.links["next"]["url"]
             else:
                 done = True
+
+    def origin_save(self, visit_type: str, origin: str) -> Dict:
+        """Save code now query for the origin with visit_type.
+
+        Args:
+            visit_type: Type of the visit
+            origin: the origin to save
+
+        Returns:
+            The resulting dict of the visit saved
+
+        Raises:
+            requests.HTTPError: if HTTP request fails
+
+        """
+        q = f"origin/save/{visit_type}/url/{origin}/"
+        r = self._call(q, http_method="post")
+        return r.json()

@@ -1,4 +1,4 @@
-# Copyright (C) 2020  The Software Heritage developers
+# Copyright (C) 2020-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -51,6 +51,7 @@ def web(ctx: Context, config_file: str):
         if not conf:
             raise ValueError(f"Cannot parse configuration file: {config_file}")
 
+        # TODO: Determine what the following conditional is for
         if config_file == DEFAULT_CONFIG_PATH:
             try:
                 conf = conf["swh"]["web"]["client"]
@@ -124,6 +125,57 @@ def search(
     except (BrokenPipeError, IOError):
         # Get rid of the BrokenPipeError message
         sys.stderr.close()
+
+
+@web.group(name="save", context_settings=CONTEXT_SETTINGS)
+@click.pass_context
+def savecodenow(ctx: Context,):
+    """Subcommand to interact from the cli with the save code now feature
+
+    """
+    pass
+
+
+@savecodenow.command("submit-request")
+@click.option("--delimiter", "-d", default=",")
+@click.pass_context
+def submit_request(ctx, delimiter: str) -> None:
+    """Submit new save code now request through cli pipe. The expected format of the request
+    if one csv row ``<visit_type>,<origin>``.
+
+    Example:
+
+        cat list-origins | swh web save submit-request
+
+        echo svn;https://svn-url\ngit;https://git-url | swh web save \
+            submit-request --delimiter ';'
+
+    Prints:
+        The output of save code now requests as json output.
+
+    """
+    import json
+    import logging
+    import sys
+
+    logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+
+    client = ctx.obj["client"]
+
+    processed_origins = []
+    for origin in sys.stdin:
+        visit_type, origin = origin.rstrip().split(delimiter)
+
+        try:
+            saved_origin = client.origin_save(visit_type, origin)
+            logging.info("Submitted origin (%s, %s)", visit_type, origin)
+            processed_origins.append(saved_origin)
+        except Exception as e:
+            logging.warning(
+                "Issue for origin (%s, %s)\n%s", origin, visit_type, e,
+            )
+    logging.debug("Origin saved: %s", len(processed_origins))
+    print(json.dumps(processed_origins))
 
 
 @web.group(name="auth", context_settings=CONTEXT_SETTINGS)

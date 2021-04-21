@@ -1,8 +1,12 @@
-swh-web-client (0.2.5-1~swh1~bpo10+1) buster-swh; urgency=medium
+swh-web-client (0.3.0-1~swh1) unstable-swh; urgency=medium
 
-  * Rebuild for buster-swh
+  * New upstream release 0.3.0     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2021-04-21 11:36:52
+    +0200)
+  * Upstream changes:     - v0.3.0     - Add new `swh save submit-
+    request` cli to batch save code now requests
 
- -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Thu, 04 Mar 2021 17:23:27 +0000
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 21 Apr 2021 09:38:18 +0000
 
 swh-web-client (0.2.5-1~swh1) unstable-swh; urgency=medium
 
