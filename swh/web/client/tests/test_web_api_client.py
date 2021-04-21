@@ -1,4 +1,4 @@
-# Copyright (C) 2020  The Software Heritage developers
+# Copyright (C) 2020-2021  The Software Heritage developers
 # See the AUTHORS file at the top-level directory of this distribution
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
@@ -6,6 +6,7 @@
 import json
 
 from dateutil.parser import parse as parse_date
+import pytest
 
 from swh.model.identifiers import REVISION, CoreSWHID
 from swh.web.client.client import typify_json
@@ -175,6 +176,23 @@ def test_origin_search(web_api_client, web_api_mock):
     for (url, visit) in expected:
         assert url in actual_urls
         assert visit in actual_visits
+
+
+@pytest.mark.parametrize(
+    "visit_type,origin",
+    [
+        ("git", "https://gitlab.org/gazelle/itest"),
+        ("git", "https://git.renater.fr/anonscm/git/6po/6po.git"),
+        ("git", "https://github.com/colobot/colobot"),
+    ],
+)
+def test_origin_save(visit_type, origin, web_api_client, web_api_mock):
+    """Post save code now is allowed from the client."""
+    save_request = web_api_client.origin_save(visit_type, origin)
+
+    assert save_request is not None
+    assert save_request["save_request_status"] == "accepted"
+    assert save_request["visit_date"] is None
 
 
 def test_known(web_api_client, web_api_mock):
