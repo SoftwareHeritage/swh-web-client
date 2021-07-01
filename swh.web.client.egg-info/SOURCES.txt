@@ -8,6 +8,7 @@ MANIFEST.in
 Makefile
 README.rst
 api_data.py
+conftest.py
 mypy.ini
 pyproject.toml
 pytest.ini
@@ -33,7 +34,6 @@ swh.web.client.egg-info/requires.txt
 swh.web.client.egg-info/top_level.txt
 swh/web/__init__.py
 swh/web/client/__init__.py
-swh/web/client/auth.py
 swh/web/client/cli.py
 swh/web/client/client.py
 swh/web/client/py.typed

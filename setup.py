@@ -69,6 +69,6 @@ setup(
     },
     entry_points="""
         [swh.cli.subcommands]
-        auth=swh.web.client.cli
+        web=swh.web.client.cli
     """,
 )
