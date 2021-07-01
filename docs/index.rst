@@ -17,13 +17,13 @@ To get this token, a dedicated CLI tool is made available when installing
 
 .. code-block:: text
 
-  $ swh web auth
-  Usage: swh web auth [OPTIONS] COMMAND [ARGS]...
+  $ swh auth
+  Usage: swh auth [OPTIONS] COMMAND [ARGS]...
 
-    Authenticate Software Heritage users with OpenID Connect.
+    Software Heritage Authentication tools.
 
-    This CLI tool eases the retrieval of bearer tokens to authenticate a user
-    querying the Software Heritage Web API.
+    This CLI eases the retrieval of a bearer token to authenticate a user
+    querying Software Heritage Web APIs.
 
   Options:
     --oidc-server-url TEXT  URL of OpenID Connect server (default to
@@ -38,10 +38,8 @@ To get this token, a dedicated CLI tool is made available when installing
     -h, --help              Show this message and exit.
 
   Commands:
-    generate-token  Generate a new bearer token for Web API authentication.
-    login           Alias for 'generate-token'
-    logout          Alias for 'revoke-token'
-    revoke-token    Revoke a bearer token used for Web API authentication.
+    generate-token  Generate a new bearer token for a Web API authentication.
+    revoke-token    Revoke a bearer token used for a Web API authentication.
 
 In order to get your tokens, you need to use the ``generate-token`` subcommand of
 the CLI tool by passing your username as argument. You will be prompted
@@ -50,7 +48,7 @@ offline session will be created and token will be dumped to standard output.
 
 .. code-block:: text
 
-  $ swh web auth generate-token <username>
+  $ swh auth --client-id swh-web generate-token <username>
   Password:
   eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJmNjMzMD...
 
@@ -81,7 +79,7 @@ to perform that task.
 
 .. code-block:: text
 
-  $ swh web auth revoke-token $REFRESH_TOKEN
+  $ swh auth --client-id swh-web revoke-token $REFRESH_TOKEN
   Token successfully revoked.
 
 API Reference

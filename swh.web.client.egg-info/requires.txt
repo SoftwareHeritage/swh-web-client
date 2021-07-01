@@ -1,6 +1,7 @@
 click
 python-dateutil
 requests
+swh.auth>=0.6
 swh.core>=0.3
 swh.model
 
@@ -8,3 +9,6 @@ swh.model
 pytest
 pytest-mock
 requests_mock
+types-python-dateutil
+types-pyyaml
+types-requests
