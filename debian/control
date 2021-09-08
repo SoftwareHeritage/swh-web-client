@@ -13,6 +13,7 @@ Build-Depends: debhelper-compat (= 13),
                python3-requests-mock,
                python3-setuptools,
                python3-setuptools-scm,
+               python3-swh.auth,
                python3-swh.core,
                python3-swh.model
 Standards-Version: 3.9.6
