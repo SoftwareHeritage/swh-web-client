@@ -7719,6 +7719,19 @@ API_DATA = {
   }
 ]
     """,  # NoQA: E501  # NoQA: E501
+    "origin/https://github.com/NixOS/nixpkgs/visit/latest/": r"""
+{
+  "origin": "https://github.com/NixOS/nixpkgs",
+  "visit": 128,
+  "date": "2021-09-02T20:20:31.231786+00:00",
+  "status": "full",
+  "snapshot": "6e1fe7858066ff1a6905080ac6503a3a12b84f59",
+  "type": "git",
+  "metadata": {},
+  "origin_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/get/",
+  "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/6e1fe7858066ff1a6905080ac6503a3a12b84f59/"
+}
+    """,  # NoQA: E501  # NoQA: E501
     "origin/search/foo%20bar%20baz%20qux/?with_visit=true": r"""
 [
   {
