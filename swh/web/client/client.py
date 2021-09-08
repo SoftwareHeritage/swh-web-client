@@ -410,6 +410,26 @@ class WebAPIClient:
             else:
                 done = True
 
+    def last_visit(self, origin: str, typify: bool = True) -> Dict[str, Any]:
+        """Return the last visit of an origin.
+
+        Args:
+            origin: the URL of a software origin
+            typify: if True, convert return value to pythonic types wherever
+                possible, otherwise return raw JSON types (default: True)
+
+        Returns:
+            The last visit for that origin
+
+        Raises:
+            requests.HTTPError: if HTTP request fails
+
+        """
+        query = f"origin/{origin}/visit/latest/"
+        r = self._call(query, http_method="get")
+        visit = r.json()
+        return typify_json(visit, ORIGIN_VISIT) if typify else visit
+
     def known(
         self, swhids: Iterator[SWHIDish], **req_args
     ) -> Dict[CoreSWHID, Dict[Any, Any]]:

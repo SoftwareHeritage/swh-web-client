@@ -151,6 +151,17 @@ def test_get_visits(web_api_client, web_api_mock):
     assert visits[7]["snapshot"] == CoreSWHID.from_string(snapshot_swhid)
 
 
+def test_get_last_visit(web_api_client, web_api_mock):
+    visit = web_api_client.last_visit("https://github.com/NixOS/nixpkgs")
+    assert visit is not None
+
+    timestamp = parse_date("2021-09-02 20:20:31.231786+00:00")
+    assert visit["date"] == timestamp
+
+    snapshot_swhid = "swh:1:snp:6e1fe7858066ff1a6905080ac6503a3a12b84f59"
+    assert visit["snapshot"] == CoreSWHID.from_string(snapshot_swhid)
+
+
 def test_origin_search(web_api_client, web_api_mock):
     limited_results = list(web_api_client.origin_search("python", limit=5))
     assert len(limited_results) == 5
