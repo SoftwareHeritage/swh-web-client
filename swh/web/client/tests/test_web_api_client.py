@@ -8,7 +8,7 @@ import json
 from dateutil.parser import parse as parse_date
 import pytest
 
-from swh.model.identifiers import REVISION, CoreSWHID
+from swh.model.swhids import CoreSWHID
 from swh.web.client.client import typify_json
 
 from .api_data import API_DATA
@@ -258,7 +258,7 @@ def test_typify_json_minimal_revision():
         "committer_date": None,
         "parents": [],
     }
-    revision_typed = typify_json(revision_data, REVISION)
+    revision_typed = typify_json(revision_data, "revision")
     pid = "swh:1:rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     assert revision_typed["id"] == CoreSWHID.from_string(pid)
     assert revision_typed["date"] is None

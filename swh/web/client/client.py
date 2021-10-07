@@ -36,7 +36,7 @@ import dateutil.parser
 import requests
 
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
-from swh.model.identifiers import CoreSWHID, ObjectType
+from swh.model.swhids import CoreSWHID, ObjectType
 from swh.web.client.cli import DEFAULT_CONFIG
 
 SWHIDish = Union[CoreSWHID, str]
