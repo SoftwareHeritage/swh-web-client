@@ -133,9 +133,7 @@ def typify_json(data: Any, obj_type: str) -> Any:
 
 
 class WebAPIClient:
-    """Client for the Software Heritage archive Web API, see
-
-    https://archive.softwareheritage.org/api/
+    """Client for the Software Heritage archive Web API, see :swh_web:`api/`
 
     """
 
@@ -146,7 +144,7 @@ class WebAPIClient:
     ):
         """Create a client for the Software Heritage Web API
 
-        See: https://archive.softwareheritage.org/api/
+        See: :swh_web:`api/`
 
         Args:
             api_url: base URL for API calls
