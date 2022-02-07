@@ -66,7 +66,7 @@ class, you can activate authentication by using the following code snippet::
 
   from swh.web.client.client import WebAPIClient
 
-  TOKEN = '.......'  # Use "swh web auth login" command to get it
+  TOKEN = '.......'  # Use "swh auth generate-token" command to get it
 
   client = WebAPIClient(bearer_token=TOKEN)
 
