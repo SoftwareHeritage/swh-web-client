@@ -173,15 +173,15 @@ def test_origin_search(web_api_client, web_api_mock):
     expected = [
         (
             "https://github.com/foo-bar-baz-qux/mygithubpage",
-            "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/mygithubpage/visits/",  # NoQA: E501
+            "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/mygithubpage/visits/",  # NoQA: B950
         ),
         (
             "https://www.npmjs.com/package/foo-bar-baz-qux",
-            "https://archive.softwareheritage.org/api/1/origin/https://www.npmjs.com/package/foo-bar-baz-qux/visits/",  # NoQA: E501
+            "https://archive.softwareheritage.org/api/1/origin/https://www.npmjs.com/package/foo-bar-baz-qux/visits/",  # NoQA: B950
         ),
         (
             "https://bitbucket.org/foobarbazqux/rp.git",
-            "https://archive.softwareheritage.org/api/1/origin/https://bitbucket.org/foobarbazqux/rp.git/visits/",  # NoQA: E501
+            "https://archive.softwareheritage.org/api/1/origin/https://bitbucket.org/foobarbazqux/rp.git/visits/",  # NoQA: B950
         ),
     ]
     for (url, visit) in expected:

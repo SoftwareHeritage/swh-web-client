@@ -133,9 +133,7 @@ def typify_json(data: Any, obj_type: str) -> Any:
 
 
 class WebAPIClient:
-    """Client for the Software Heritage archive Web API, see :swh_web:`api/`
-
-    """
+    """Client for the Software Heritage archive Web API, see :swh_web:`api/`"""
 
     def __init__(
         self,
@@ -520,7 +518,9 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"release/{_get_object_id_hex(swhid)}/", http_method="head", **req_args,
+                f"release/{_get_object_id_hex(swhid)}/",
+                http_method="head",
+                **req_args,
             )
         )
 
@@ -555,7 +555,11 @@ class WebAPIClient:
 
         """
         return bool(
-            self._call(f"origin/{origin}/get/", http_method="head", **req_args,)
+            self._call(
+                f"origin/{origin}/get/",
+                http_method="head",
+                **req_args,
+            )
         )
 
     def content_raw(self, swhid: SWHIDish, **req_args) -> Iterator[bytes]:

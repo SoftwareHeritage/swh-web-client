@@ -75,7 +75,10 @@ def web(ctx: Context, config_file: str):
 
 @web.command(name="search")
 @click.argument(
-    "query", required=True, nargs=-1, metavar="KEYWORD...",
+    "query",
+    required=True,
+    nargs=-1,
+    metavar="KEYWORD...",
 )
 @click.option(
     "--limit",
@@ -99,7 +102,11 @@ def web(ctx: Context, config_file: str):
 )
 @click.pass_context
 def search(
-    ctx: Context, query: List[str], limit: int, only_visited: bool, url_encode: bool,
+    ctx: Context,
+    query: List[str],
+    limit: int,
+    only_visited: bool,
+    url_encode: bool,
 ):
     """Search a query (as a list of keywords) into the Software Heritage
     archive.
@@ -132,10 +139,10 @@ def search(
 
 @web.group(name="save", context_settings=CONTEXT_SETTINGS)
 @click.pass_context
-def savecodenow(ctx: Context,):
-    """Subcommand to interact from the cli with the save code now feature
-
-    """
+def savecodenow(
+    ctx: Context,
+):
+    """Subcommand to interact from the cli with the save code now feature"""
     pass
 
 
@@ -175,7 +182,10 @@ def submit_request(ctx, delimiter: str) -> None:
             processed_origins.append(saved_origin)
         except Exception as e:
             logging.warning(
-                "Issue for origin (%s, %s)\n%s", origin, visit_type, e,
+                "Issue for origin (%s, %s)\n%s",
+                origin,
+                visit_type,
+                e,
             )
     logging.debug("Origin saved: %s", len(processed_origins))
     print(json.dumps(processed_origins))
