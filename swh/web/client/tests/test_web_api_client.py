@@ -7,8 +7,8 @@ import json
 
 from dateutil.parser import parse as parse_date
 import pytest
-
 from swh.model.swhids import CoreSWHID
+
 from swh.web.client.client import typify_json
 
 from .api_data import API_DATA
@@ -117,7 +117,6 @@ def test_iter_snapshot(web_api_client, web_api_mock):
 
 
 def test_authentication(web_api_client, web_api_mock):
-
     rel_id = "b9db10d00835e9a43e2eebef2db1d04d4ae82342"
     url = f"{web_api_client.api_url}/release/{rel_id}/"
 
@@ -184,7 +183,7 @@ def test_origin_search(web_api_client, web_api_mock):
             "https://archive.softwareheritage.org/api/1/origin/https://bitbucket.org/foobarbazqux/rp.git/visits/",  # NoQA: B950
         ),
     ]
-    for (url, visit) in expected:
+    for url, visit in expected:
         assert url in actual_urls
         assert visit in actual_visits
 
@@ -262,3 +261,33 @@ def test_typify_json_minimal_revision():
     pid = "swh:1:rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     assert revision_typed["id"] == CoreSWHID.from_string(pid)
     assert revision_typed["date"] is None
+
+
+@pytest.mark.parametrize(
+    "swhid",
+    [
+        "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
+        "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
+        "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
+        "swh:1:rel:b9db10d00835e9a43e2eebef2db1d04d4ae82342",
+        "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
+    ],
+)
+@pytest.mark.parametrize("swhid_type", ["str", "CoreSWHID"])
+@pytest.mark.parametrize("typify", [True, False])
+def test_iter(web_api_client, web_api_mock, swhid, swhid_type, typify):
+    # full list of SWHIDs for which we mock a {known: True} answer
+    swhids = [
+        "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
+        "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
+        "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
+        "swh:1:rel:b9db10d00835e9a43e2eebef2db1d04d4ae82342",
+        "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
+    ]
+    for swhid in swhids:
+        if swhid_type == "CoreSWHID":
+            assert list(
+                web_api_client.iter(CoreSWHID.from_string(swhid), typify=typify)
+            )
+        else:
+            assert list(web_api_client.iter(swhid, typify=typify))

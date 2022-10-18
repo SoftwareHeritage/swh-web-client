@@ -241,15 +241,15 @@ class WebAPIClient:
             obj_type = CoreSWHID.from_string(swhid).object_type
         else:
             obj_type = swhid.object_type
-        if obj_type == SNAPSHOT:
+        if obj_type == ObjectType.SNAPSHOT:
             yield from self.snapshot(swhid, typify)
-        elif obj_type == REVISION:
+        elif obj_type == ObjectType.REVISION:
             yield from [self.revision(swhid, typify)]
-        elif obj_type == RELEASE:
+        elif obj_type == ObjectType.RELEASE:
             yield from [self.release(swhid, typify)]
-        elif obj_type == DIRECTORY:
+        elif obj_type == ObjectType.DIRECTORY:
             yield from self.directory(swhid, typify)
-        elif obj_type == CONTENT:
+        elif obj_type == ObjectType.CONTENT:
             yield from [self.content(swhid, typify)]
         else:
             raise ValueError(f"invalid object type: {obj_type}")
