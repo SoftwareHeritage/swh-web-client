@@ -82,13 +82,15 @@ to perform that task.
   $ swh auth --client-id swh-web revoke-token $REFRESH_TOKEN
   Token successfully revoked.
 
-API Reference
--------------
 
-.. toctree::
-   :maxdepth: 2
+.. only:: standalone_package_doc
 
-   /apidoc/swh.web.client
+   Indices and tables
+   ------------------
+
+   * :ref:`genindex`
+   * :ref:`modindex`
+   * :ref:`search`
 
 .. _Software Heritage Identity Provider:
   https://auth.softwareheritage.org/auth/realms/SoftwareHeritage/account/
