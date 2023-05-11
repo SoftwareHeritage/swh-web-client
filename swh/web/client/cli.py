@@ -50,7 +50,7 @@ def web(ctx: Context, config_file: str):
         config_file = DEFAULT_CONFIG_PATH
 
     try:
-        conf = config.read_raw_config(config.config_basepath(config_file))
+        conf = config.read_raw_config(config_file)
         if not conf:
             raise ValueError(f"Cannot parse configuration file: {config_file}")
 
