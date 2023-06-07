@@ -158,6 +158,7 @@ def submit_request(ctx, delimiter: str) -> None:
     \b
         cat list-origins | swh web save submit-request
 
+    \b
         echo svn;https://svn-url\\ngit;https://git-url | swh web save \\
             submit-request --delimiter ';'
 
