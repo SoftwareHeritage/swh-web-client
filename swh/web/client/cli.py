@@ -153,11 +153,12 @@ def submit_request(ctx, delimiter: str) -> None:
     """Submit new save code now request through cli pipe. The expected format of the request
     if one csv row ``<visit_type>,<origin>``.
 
-    Example:
+    Example::
 
+    \b
         cat list-origins | swh web save submit-request
 
-        echo svn;https://svn-url\ngit;https://git-url | swh web save \
+        echo svn;https://svn-url\\ngit;https://git-url | swh web save \\
             submit-request --delimiter ';'
 
     Prints:
