@@ -22,15 +22,15 @@ def web_api_mock(requests_mock):
         if api_call == "snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/":
             # to make the client init and follow pagination
             headers = {
-                "Link": f'<{API_URL}/{api_call}?branches_count=1000&branches_from=refs/tags/v3.0-rc7>; rel="next"'  # NoQA: E501
+                "Link": f'<{API_URL}/{api_call}?branches_count=1000&branches_from=refs/tags/v3.0-rc7>; rel="next"'  # NoQA: B950
             }
         elif (
             api_call
-            == "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=50&per_page=10"  # NoQA: E501
+            == "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=50&per_page=10"  # NoQA: B950
         ):
             # to make the client follow pagination
             headers = {
-                "Link": f'<{API_URL}/origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10>; rel="next"'  # NoQA: E501
+                "Link": f'<{API_URL}/origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10>; rel="next"'  # NoQA: B950
             }
         requests_mock.get(f"{API_URL}/{api_call}", text=data, headers=headers)
 
@@ -61,9 +61,7 @@ def web_api_client():
 
 @pytest.fixture
 def cli_global_config_dict():
-    """Define a basic configuration yaml for the cli.
-
-    """
+    """Define a basic configuration yaml for the cli."""
     return {
         "api_url": API_URL,
         "bearer_token": None,
@@ -72,9 +70,7 @@ def cli_global_config_dict():
 
 @pytest.fixture
 def cli_config_path(tmp_path, cli_global_config_dict, monkeypatch):
-    """Write a global.yml file and writes it in the environment
-
-    """
+    """Write a global.yml file and writes it in the environment"""
     config_path = os.path.join(tmp_path, "global.yml")
     with open(config_path, "w") as f:
         f.write(yaml.dump(cli_global_config_dict))

@@ -19,7 +19,7 @@ API_DATA = {
   "language_url": "https://archive.softwareheritage.org/api/1/content/sha1_git:fe95a46679d128ff167b7c55df5d02356c5a1ae1/language/",
   "license_url": "https://archive.softwareheritage.org/api/1/content/sha1_git:fe95a46679d128ff167b7c55df5d02356c5a1ae1/license/"
 }
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "directory/977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
 [
   {
@@ -458,7 +458,7 @@ API_DATA = {
     "target_url": "https://archive.softwareheritage.org/api/1/content/sha1_git:6a05643838bb4ef64ae093f7a0f816a80d6f09f4/"
   }
 ]
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "release/b9db10d00835e9a43e2eebef2db1d04d4ae82342/": r"""
 {
   "author": {
@@ -475,7 +475,7 @@ API_DATA = {
   "target_type": "revision",
   "target_url": "https://archive.softwareheritage.org/api/1/revision/e005cb773c769436709ca6a1d625dc784dbc1636/"
 }
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "revision/aafb16d69fd30ff58afdd69036a26047f3aebdc6/": r"""
 {
   "id": "aafb16d69fd30ff58afdd69036a26047f3aebdc6",
@@ -511,7 +511,7 @@ API_DATA = {
   "history_url": "https://archive.softwareheritage.org/api/1/revision/aafb16d69fd30ff58afdd69036a26047f3aebdc6/log/",
   "directory_url": "https://archive.softwareheritage.org/api/1/directory/9f2e5898e00a66e6ac11033959d7e05b1593353b/"
 }
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "snapshot/6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a/": r"""
 {
   "id": "6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
@@ -539,7 +539,7 @@ API_DATA = {
   },
   "next_branch": null
 }
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/": r"""
 {
   "id": "cabcc7d7bf639bbe1cc3b41989e1806618dd5764",
@@ -5547,7 +5547,7 @@ API_DATA = {
   },
   "next_branch": "refs/tags/v3.0-rc7"
 }
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "snapshot/cabcc7d7bf639bbe1cc3b41989e1806618dd5764/?branches_count=1000&branches_from=refs/tags/v3.0-rc7": r"""
 {
   "id": "cabcc7d7bf639bbe1cc3b41989e1806618dd5764",
@@ -7510,7 +7510,7 @@ API_DATA = {
   },
   "next_branch": null
 }
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=50&per_page=10": r"""
 [
   {
@@ -7614,7 +7614,7 @@ API_DATA = {
     "snapshot_url": null
   }
 ]
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "origin/https://github.com/NixOS/nixpkgs/visits/?last_visit=40&per_page=10": r"""
 [
   {
@@ -7718,7 +7718,7 @@ API_DATA = {
     "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/100de51846f317e6ab48da79d985cefa6fdefe42/"
   }
 ]
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "origin/https://github.com/NixOS/nixpkgs/visit/latest/": r"""
 {
   "origin": "https://github.com/NixOS/nixpkgs",
@@ -7731,7 +7731,7 @@ API_DATA = {
   "origin_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/NixOS/nixpkgs/get/",
   "snapshot_url": "https://archive.softwareheritage.org/api/1/snapshot/6e1fe7858066ff1a6905080ac6503a3a12b84f59/"
 }
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "origin/search/foo%20bar%20baz%20qux/?with_visit=true": r"""
 [
   {
@@ -7839,7 +7839,7 @@ API_DATA = {
     "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/foo-bar-baz-qux/EconML/visits/"
   }
 ]
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
     "origin/search/python/?limit=5": r"""
 [
   {
@@ -7863,5 +7863,5 @@ API_DATA = {
     "origin_visits_url": "https://archive.softwareheritage.org/api/1/origin/https://github.com/knutab/Python-BSM/visits/"
   }
 ]
-    """,  # NoQA: E501  # NoQA: E501
+    """,  # NoQA: B950  # NoQA: B950
 }
