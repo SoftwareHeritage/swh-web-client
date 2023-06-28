@@ -36,7 +36,7 @@ import dateutil.parser
 import requests
 
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
-from swh.model.identifiers import CoreSWHID, ObjectType
+from swh.model.swhids import CoreSWHID, ObjectType
 from swh.web.client.cli import DEFAULT_CONFIG
 
 SWHIDish = Union[CoreSWHID, str]
@@ -133,11 +133,7 @@ def typify_json(data: Any, obj_type: str) -> Any:
 
 
 class WebAPIClient:
-    """Client for the Software Heritage archive Web API, see
-
-    https://archive.softwareheritage.org/api/
-
-    """
+    """Client for the Software Heritage archive Web API, see :swh_web:`api/`"""
 
     def __init__(
         self,
@@ -146,7 +142,7 @@ class WebAPIClient:
     ):
         """Create a client for the Software Heritage Web API
 
-        See: https://archive.softwareheritage.org/api/
+        See: :swh_web:`api/`
 
         Args:
             api_url: base URL for API calls
@@ -522,7 +518,9 @@ class WebAPIClient:
         """
         return bool(
             self._call(
-                f"release/{_get_object_id_hex(swhid)}/", http_method="head", **req_args,
+                f"release/{_get_object_id_hex(swhid)}/",
+                http_method="head",
+                **req_args,
             )
         )
 
@@ -557,7 +555,11 @@ class WebAPIClient:
 
         """
         return bool(
-            self._call(f"origin/{origin}/get/", http_method="head", **req_args,)
+            self._call(
+                f"origin/{origin}/get/",
+                http_method="head",
+                **req_args,
+            )
         )
 
     def content_raw(self, swhid: SWHIDish, **req_args) -> Iterator[bytes]:
