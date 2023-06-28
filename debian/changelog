@@ -1,3 +1,21 @@
+swh-web-client (0.6.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.6.0     - (tagged by Antoine R. Dumont
+    (@ardumont) <ardumont@softwareheritage.org> on 2023-06-28 15:31:06
+    +0200)
+  * Upstream changes:     - v0.6.0     - cli: Actually fix the second
+    command     - cli: Fix submit-request's docstring     - cli: Fix
+    AttributeError after config_basepath removal     - Invert symlink
+    and content for the README file     - docs: Include module indices
+    only when building standalone package doc     - Remove empty
+    api_data.py file in root directory     - requirements-test: Remove
+    pytest pinning to < 7     - pytest: Exclude build directory for
+    tests discovery     - docs: Remove reference to no longer existing
+    swh command     - docs: Fix redondant extlink link warnings on
+    archive.s.o
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Wed, 28 Jun 2023 13:35:12 +0000
+
 swh-web-client (0.5.0-1~swh2) unstable-swh; urgency=medium
 
   * Bump new release
