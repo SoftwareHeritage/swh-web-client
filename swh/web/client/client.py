@@ -186,6 +186,8 @@ class WebAPIClient:
             ObjectType.REVISION: self.revision,
             ObjectType.SNAPSHOT: self._get_snapshot,
         }
+        # assume we will do multiple call and keep the connection alive
+        self._session = requests.Session()
 
     def _call(
         self, query: str, http_method: str = "get", **req_args
@@ -224,11 +226,11 @@ class WebAPIClient:
         while retry >= 0:
             retry -= 1
             if http_method == "get":
-                r = requests.get(url, **req_args, headers=headers)
+                r = self._session.get(url, **req_args, headers=headers)
             elif http_method == "post":
-                r = requests.post(url, **req_args, headers=headers)
+                r = self._session.post(url, **req_args, headers=headers)
             elif http_method == "head":
-                r = requests.head(url, **req_args, headers=headers)
+                r = self._session.head(url, **req_args, headers=headers)
             if r.status_code not in self._retry_status:
                 r.raise_for_status()
                 break
