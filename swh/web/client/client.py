@@ -29,6 +29,7 @@ conversions and pagination.
 """
 
 from datetime import datetime
+import itertools
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Union
 from urllib.parse import urlparse
 
@@ -130,6 +131,16 @@ def typify_json(data: Any, obj_type: str) -> Any:
         raise ValueError(f"invalid object type: {obj_type}")
 
     return data
+
+
+# The maximum amount of SWHID that one can request in a single `known` request
+KNOWN_QUERY_LIMIT = 1000
+
+
+def _get_known_chunk(swhids):
+    """slice a list of `swhids` into smaller list of size KNOWN_QUERY_LIMIT"""
+    for i in range(0, len(swhids), KNOWN_QUERY_LIMIT):
+        yield swhids[i : i + KNOWN_QUERY_LIMIT]
 
 
 class WebAPIClient:
@@ -443,10 +454,15 @@ class WebAPIClient:
             requests.HTTPError: if HTTP request fails
 
         """
-        r = self._call(
-            "known/", http_method="post", json=list(map(str, swhids)), **req_args
-        )
-        return {CoreSWHID.from_string(k): v for k, v in r.json().items()}
+        all_swh_ids = list(swhids)
+        chunks = _get_known_chunk(all_swh_ids)
+        all_results = []
+        for c in chunks:
+            ids = list(map(str, c))
+            r = self._call("known/", http_method="post", json=ids, **req_args)
+            all_results.append(r.json())
+        results = itertools.chain.from_iterable(e.items() for e in all_results)
+        return {CoreSWHID.from_string(k): v for k, v in results}
 
     def content_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a content object exists in the archive

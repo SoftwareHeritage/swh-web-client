@@ -4,14 +4,16 @@
 # See top-level LICENSE file for more information
 
 import json
+import random
 
 from dateutil.parser import parse as parse_date
 import pytest
 
 from swh.model.swhids import CoreSWHID
-from swh.web.client.client import typify_json
+from swh.web.client.client import KNOWN_QUERY_LIMIT, typify_json
 
 from .api_data import API_DATA
+from .api_data_static import KNOWN_SWHIDS
 
 
 def test_get_content(web_api_client, web_api_mock):
@@ -205,23 +207,29 @@ def test_origin_save(visit_type, origin, web_api_client, web_api_mock):
     assert save_request["visit_date"] is None
 
 
-def test_known(web_api_client, web_api_mock):
-    # full list of SWHIDs for which we mock a {known: True} answer
-    known_swhids = [
-        "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
-        "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
-        "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
-        "swh:1:rel:208f61cc7a5dbc9879ae6e5c2f95891e270f09ef",
-        "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
-    ]
+def _query_known(web_api_client, query_size):
+    known_swhids = sorted(KNOWN_SWHIDS, key=lambda x: x[::-1])[:query_size]
     bogus_swhids = [s[:20] + "c0ffee" + s[26:] for s in known_swhids]
     all_swhids = known_swhids + bogus_swhids
+    random.shuffle(all_swhids)
 
     known_res = web_api_client.known(all_swhids)
 
     assert {str(k) for k in known_res} == set(all_swhids)
     for swhid, info in known_res.items():
-        assert info["known"] == (str(swhid) in known_swhids)
+        assert info["known"] == (str(swhid) in KNOWN_SWHIDS)
+
+
+def test_known_small(web_api_client, web_api_mock):
+    """check a query that is smaller than the limit"""
+    query_size = KNOWN_QUERY_LIMIT // 10
+    _query_known(web_api_client, query_size)
+
+
+def test_known_large(web_api_client, web_api_mock):
+    """check a query that is higher than the limit"""
+    query_size = KNOWN_QUERY_LIMIT * 3
+    _query_known(web_api_client, query_size)
 
 
 def test_get_json(web_api_client, web_api_mock):

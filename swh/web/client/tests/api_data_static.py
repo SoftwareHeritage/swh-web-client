@@ -3,6 +3,7 @@
 # License: GNU General Public License version 3, or any later version
 # See top-level LICENSE file for more information
 
+import hashlib
 
 API_DATA_STATIC = {
     "origin/save/git/url/https://gitlab.org/gazelle/itest/": r"""
@@ -36,3 +37,9 @@ API_DATA_STATIC = {
   }
     """,
 }
+
+KNOWN_SWHIDS = set()
+for id_type in ("cnt", "dir", "rev", "rel", "snp"):
+    for x in range(10000):
+        h = hashlib.md5(b"%d" % x).hexdigest()
+        KNOWN_SWHIDS.add(f"swh:1:{id_type}:{h}{h[:8]}")
