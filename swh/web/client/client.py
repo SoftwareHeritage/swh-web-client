@@ -648,3 +648,17 @@ class WebAPIClient:
         q = f"origin/save/{visit_type}/url/{origin}/"
         r = self._call(q, http_method="post")
         return r.json()
+
+    def get_origin(self, swhid: CoreSWHID) -> Optional[Any]:
+        """Walk the compressed graph to discover the origin of a given swhid
+
+        This method exist for the swh-scanner and is likely to change
+        significantly and/or be replaced, we do not recommend using it.
+        """
+        key = str(swhid)
+        q = (
+            f"graph/randomwalk/{key}/ori/"
+            f"?direction=backward&limit=-1&resolve_origins=true"
+        )
+        with self._call(q, http_method="get") as r:
+            return r.text
