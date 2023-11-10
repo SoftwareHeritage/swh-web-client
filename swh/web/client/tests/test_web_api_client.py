@@ -8,11 +8,13 @@ import random
 
 from dateutil.parser import parse as parse_date
 import pytest
+from requests.exceptions import HTTPError
 
+from swh.model.hashutil import hash_to_hex
 from swh.model.swhids import CoreSWHID
 from swh.web.client.client import KNOWN_QUERY_LIMIT, typify_json
 
-from .api_data import API_DATA
+from .api_data import API_DATA, API_URL
 from .api_data_static import KNOWN_SWHIDS
 
 
@@ -27,6 +29,33 @@ def test_get_content(web_api_client, web_api_mock):
     assert obj["checksums"]["sha1"] == "dc2830a9e72f23c1dfebef4413003221baa5fb62"
 
     assert obj == web_api_client.content(swhid)
+
+
+def test_get_retry(web_api_client, web_api_mock):
+    swhid = CoreSWHID.from_string("swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1")
+    url = f"{API_URL}/content/sha1_git:{hash_to_hex(swhid.object_id)}/"
+
+    # return 429 only three time
+    limited_uses = [None, None, None]
+
+    def limited_matcher(*args, **kwargs):
+        ret = not limited_uses
+        if ret:
+            limited_uses.pop()
+        return ret
+
+    web_api_mock.get(url, status_code=429, additional_matcher=limited_matcher)
+
+    # the call should work and return an object,
+    # the 429 automatically result in a retry after some delay
+    obj = web_api_client.content(swhid)
+    assert obj["checksums"]["sha1_git"] == str(swhid).split(":")[3]
+
+    web_api_mock.get(url, status_code=405)
+
+    # the call should fail
+    with pytest.raises(HTTPError):
+        web_api_client.content(swhid)
 
 
 def test_get_directory(web_api_client, web_api_mock):

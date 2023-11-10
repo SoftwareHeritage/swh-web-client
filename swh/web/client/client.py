@@ -30,11 +30,13 @@ conversions and pagination.
 
 from datetime import datetime
 import itertools
+import time
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Union
 from urllib.parse import urlparse
 
 import dateutil.parser
 import requests
+import requests.status_codes
 
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.model.swhids import CoreSWHID, ObjectType
@@ -143,6 +145,13 @@ def _get_known_chunk(swhids):
         yield swhids[i : i + KNOWN_QUERY_LIMIT]
 
 
+MAX_RETRY = 10
+
+DEFAULT_RETRY_REASONS = {
+    requests.status_codes.codes.TOO_MANY_REQUESTS,
+}
+
+
 class WebAPIClient:
     """Client for the Software Heritage archive Web API, see :swh_web:`api/`"""
 
@@ -150,6 +159,8 @@ class WebAPIClient:
         self,
         api_url: str = DEFAULT_CONFIG["api_url"],
         bearer_token: Optional[str] = DEFAULT_CONFIG["bearer_token"],
+        request_retry=MAX_RETRY,
+        retry_status=DEFAULT_RETRY_REASONS,
     ):
         """Create a client for the Software Heritage Web API
 
@@ -165,6 +176,8 @@ class WebAPIClient:
         self.api_url = api_url
         self.api_path = u.path
         self.bearer_token = bearer_token
+        self._max_retry = request_retry
+        self._retry_status = retry_status
 
         self._getters: Dict[ObjectType, Callable[[SWHIDish, bool], Any]] = {
             ObjectType.CONTENT: self.content,
@@ -193,23 +206,34 @@ class WebAPIClient:
             url = query
         else:  # relative URL; prepend base API URL
             url = "/".join([self.api_url, query])
-        r = None
 
         headers = {}
         if self.bearer_token is not None:
             headers = {"Authorization": f"Bearer {self.bearer_token}"}
 
-        if http_method == "get":
-            r = requests.get(url, **req_args, headers=headers)
-            r.raise_for_status()
-        elif http_method == "post":
-            r = requests.post(url, **req_args, headers=headers)
-            r.raise_for_status()
-        elif http_method == "head":
-            r = requests.head(url, **req_args, headers=headers)
-        else:
+        if http_method not in ("get", "post", "head"):
             raise ValueError(f"unsupported HTTP method: {http_method}")
 
+        return self._retryable_call(http_method, url, headers, req_args)
+
+    def _retryable_call(self, http_method, url, headers, req_args):
+        assert http_method in ("get", "post", "head"), http_method
+
+        retry = self._max_retry
+        delay = 0.1
+        while retry >= 0:
+            retry -= 1
+            if http_method == "get":
+                r = requests.get(url, **req_args, headers=headers)
+            elif http_method == "post":
+                r = requests.post(url, **req_args, headers=headers)
+            elif http_method == "head":
+                r = requests.head(url, **req_args, headers=headers)
+            if r.status_code not in self._retry_status:
+                r.raise_for_status()
+                break
+            time.sleep(delay)
+            delay *= 2
         return r
 
     def _get_snapshot(self, swhid: SWHIDish, typify: bool = True) -> Dict[str, Any]:
