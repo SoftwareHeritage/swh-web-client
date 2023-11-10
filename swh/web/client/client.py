@@ -29,7 +29,7 @@ conversions and pagination.
 """
 
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterator, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Union
 from urllib.parse import urlparse
 
 import dateutil.parser
@@ -427,7 +427,7 @@ class WebAPIClient:
         return typify_json(visit, ORIGIN_VISIT) if typify else visit
 
     def known(
-        self, swhids: Iterator[SWHIDish], **req_args
+        self, swhids: Iterable[SWHIDish], **req_args
     ) -> Dict[CoreSWHID, Dict[Any, Any]]:
         """Verify the presence in the archive of several objects at once
 
