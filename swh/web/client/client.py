@@ -161,6 +161,7 @@ class _RateLimitInfo:
     """Object that hold rate limit information and can compute delay
 
     >>> reset = 150
+    >>> ### test replacement logic
     >>> # some old information to replace
     >>> old = _RateLimitInfo(42, 44, 1000, 800, reset)
     >>> # some information with the same date but lower budget
@@ -172,7 +173,27 @@ class _RateLimitInfo:
     >>> # the later window replace the older window
     >>> assert newer.replacing(old)
     >>> assert newer.replacing(new)
+    >>> ### test delay logic
+    >>> # if the budget is fully available we expect no delay
+    >>> full = _RateLimitInfo(42, 42, 1000, 1000, reset)
+    >>> # whatever the remaining windows is
+    >>> assert full.pratical_delay(50) == 0
+    >>> assert full.pratical_delay(100) == 0
+    >>> # if the budget is half consumed we expect a delay
+    >>> half = _RateLimitInfo(42, 42, 1000, 500, reset)
+    >>> delay_100w = half.pratical_delay(50)
+    >>> assert 0 < delay_100w < half.MAX_SLOW_FACTOR
+    >>> # smaller windows means smaller delay
+    >>> delay_50w = half.pratical_delay(100)
+    >>> assert 0 < delay_50w < half.MAX_SLOW_FACTOR
+    >>> assert (delay_100w / 2.1) < delay_50w < (delay_100w / 1.9)
     """
+
+    # see usage code for documentation
+    SLOW_DOWN_RATIO = 0.9
+    MIN_SLOW_FACTOR = 0.1
+    MAX_SLOW_FACTOR = 10
+    SLOW_POWER = 4
 
     def __init__(self, start, end, limit, remaining, reset):
         self.start = start
@@ -204,6 +225,73 @@ class _RateLimitInfo:
 
         # information overlap, keep the stricter one
         return self.remaining_ratio < other.remaining_ratio
+
+    def theoretical_delay(self, current_date):
+        """theoretical necessary delay between request until the end of the windows
+
+        If request are issued at this interval, they will match the request
+        rate limit from the server.
+
+        Value is return in second"""
+        timeframe = self.reset_date - current_date
+
+        if timeframe <= 0:
+            # the reset date is passed, no rate limiting to apply
+            return 0
+
+        return timeframe / self.remaining
+
+    def pratical_delay(self, current_date):
+        """return current appropriate request delay in second
+
+        how much we should wait before each issuing a new request if we want
+        to avoid depleting the budget early
+        That logic is not very elaborate for now and has various limitation. For example:
+        - the delay should be dynamic and take in account the age the information,
+        - we don't account for potential multiple thread
+        """
+        if self.remaining <= 0:
+            # no more credit, we can just wait.
+            #
+            # We wait a bit more since reaching zero budget is a failure in
+            # itself.
+            delay = self.reset_date - current_date
+            delay *= 1.1
+            return delay
+
+        delay = self.theoretical_delay(current_date)
+        # We do not introduce delay for the initial part of the budget.
+        #
+        # We do not want to slow down a small burst of request.
+        # that ratio is controlled by SLOW_DOWN_RATIO.
+        if delay <= 0 or self.remaining_ratio > self.SLOW_DOWN_RATIO:
+            return 0
+
+        # The remaining budget start to be limited, we are going to delay
+        # request to match a rate that allow us to keep issuing requests until
+        # the windows is reset
+        #
+        # The lower the budget, the longer we delay request, waiting more than
+        # what is strictly necessary. This is intended to help cope with other
+        # Client chipping at the same budget.
+        #
+        # when SLOW_DOWN_RATIO is reached, such factor will be
+        # MIN_SLOW_FACTOR at the start and MAX_SLOW_FACTOR at the end. That
+        # factor will evolve using a xʸ curve. Where y is SLOW_POWER.
+        assert 0 <= self.SLOW_DOWN_RATIO <= 1
+        assert self.MIN_SLOW_FACTOR < self.MAX_SLOW_FACTOR
+        assert 0 < self.SLOW_POWER
+        start = self.MIN_SLOW_FACTOR ** (1 / self.SLOW_POWER)
+        end = self.MAX_SLOW_FACTOR ** (1 / self.SLOW_POWER)
+        used_up = 1 - (self.remaining_ratio / self.SLOW_DOWN_RATIO)
+        x = start + ((end - start) * used_up)
+        factor = x**self.SLOW_POWER
+
+        if factor <= 0:
+            # let us avoid negative delay in case MIN_SLOW_FACTOR allows for it.
+            return 0
+
+        return delay * factor
 
 
 # The maximum amount of SWHID that one can request in a single `known` request
@@ -311,6 +399,11 @@ class WebAPIClient:
     def _one_call(self, http_method, url, headers, req_args):
         """call on request and update rate limit info if available"""
         assert http_method in ("get", "post", "head"), http_method
+        rate_limit = self._latest_rate_limit_info
+        if rate_limit is not None:
+            delay = rate_limit.pratical_delay(time.time())
+            if delay > 0:
+                time.sleep(delay)
         start = time.monotonic()
         with self._rate_limit_lock:
             if start > self._latest_request_date:
