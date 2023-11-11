@@ -30,8 +30,9 @@ conversions and pagination.
 
 from datetime import datetime
 import itertools
+import threading
 import time
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import dateutil.parser
@@ -135,6 +136,76 @@ def typify_json(data: Any, obj_type: str) -> Any:
     return data
 
 
+def _parse_limit_header(response) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+    """parse the X-RateLimit Headers if any
+
+    return a `(Limit, Remaining, Reset)` tuple
+
+    Limit:     containing the requests quota in the time window;
+    Remaining: containing the remaining requests quota in the current window;
+    Reset:     date of the current windows reset, as UTC second.
+    """
+    limit = response.headers.get("X-RateLimit-Limit")
+    if limit is not None:
+        limit = int(limit)
+    remaining = response.headers.get("X-RateLimit-Remaining")
+    if remaining is not None:
+        remaining = int(remaining)
+    reset = response.headers.get("X-RateLimit-Reset")
+    if reset is not None:
+        reset = int(reset)
+    return (limit, remaining, reset)
+
+
+class _RateLimitInfo:
+    """Object that hold rate limit information and can compute delay
+
+    >>> reset = 150
+    >>> # some old information to replace
+    >>> old = _RateLimitInfo(42, 44, 1000, 800, reset)
+    >>> # some information with the same date but lower budget
+    >>> new = _RateLimitInfo(42, 44, 1000, 700, reset)
+    >>> # some information with a later window
+    >>> newer = _RateLimitInfo(42, 44, 1000, 100, reset * 2)
+    >>> # the old one is replaced by a lower budget
+    >>> assert new.replacing(old)
+    >>> # the later window replace the older window
+    >>> assert newer.replacing(old)
+    >>> assert newer.replacing(new)
+    """
+
+    def __init__(self, start, end, limit, remaining, reset):
+        self.start = start
+        self.end = end
+        self.limit = limit
+        self.remaining = remaining
+        self.reset_date = reset
+
+        self.remaining_ratio = self.remaining / self.limit
+
+    def __repr__(self):
+        r = "<RateLimitInfo start=%s, end=%s, budget=%d/%d, reset_date=%d>"
+        r %= (self.start, self.end, self.remaining, self.limit, self.reset_date)
+        return r
+
+    def replacing(self, other):
+
+        if other.reset_date != self.reset_date:
+            # the one with a later reset date is likely more up to date.
+            return other.reset_date < self.reset_date
+
+        # new info are strictly newer than existing one
+        if other.end < self.start:
+            return True
+
+        # new info are strictly older than existing one
+        if other.end < self.start:
+            return False
+
+        # information overlap, keep the stricter one
+        return self.remaining_ratio < other.remaining_ratio
+
+
 # The maximum amount of SWHID that one can request in a single `known` request
 KNOWN_QUERY_LIMIT = 1000
 
@@ -189,6 +260,10 @@ class WebAPIClient:
         # assume we will do multiple call and keep the connection alive
         self._session = requests.Session()
 
+        self._rate_limit_lock = threading.Lock()
+        self._latest_request_date = 0
+        self._latest_rate_limit_info = None
+
     def _call(
         self, query: str, http_method: str = "get", **req_args
     ) -> requests.models.Response:
@@ -225,17 +300,40 @@ class WebAPIClient:
         delay = 0.1
         while retry >= 0:
             retry -= 1
-            if http_method == "get":
-                r = self._session.get(url, **req_args, headers=headers)
-            elif http_method == "post":
-                r = self._session.post(url, **req_args, headers=headers)
-            elif http_method == "head":
-                r = self._session.head(url, **req_args, headers=headers)
+            r = self._one_call(http_method, url, headers, req_args)
             if r.status_code not in self._retry_status:
                 r.raise_for_status()
                 break
             time.sleep(delay)
             delay *= 2
+        return r
+
+    def _one_call(self, http_method, url, headers, req_args):
+        """call on request and update rate limit info if available"""
+        assert http_method in ("get", "post", "head"), http_method
+        start = time.monotonic()
+        with self._rate_limit_lock:
+            if start > self._latest_request_date:
+                self._latest_request_date = start
+        if http_method == "get":
+            r = self._session.get(url, **req_args, headers=headers)
+        elif http_method == "post":
+            r = self._session.post(url, **req_args, headers=headers)
+        elif http_method == "head":
+            r = self._session.head(url, **req_args, headers=headers)
+        end = time.monotonic()
+        with self._rate_limit_lock:
+            if end > self._latest_request_date:
+                self._latest_request_date = end
+
+        rate_limit_header = _parse_limit_header(r)
+        if None not in rate_limit_header:
+            new = _RateLimitInfo(start, end, *rate_limit_header)
+            with self._rate_limit_lock:
+                existing = self._latest_rate_limit_info
+                if existing is None or new.replacing(existing):
+                    # no pre-existing data
+                    self._latest_rate_limit_info = new
         return r
 
     def _get_snapshot(self, swhid: SWHIDish, typify: bool = True) -> Dict[str, Any]:
