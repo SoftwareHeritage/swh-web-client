@@ -30,6 +30,7 @@ conversions and pagination.
 
 from datetime import datetime
 import itertools
+import logging
 import threading
 import time
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
@@ -42,6 +43,8 @@ import requests.status_codes
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.model.swhids import CoreSWHID, ObjectType
 from swh.web.client.cli import DEFAULT_CONFIG
+
+logger = logging.getLogger(__name__)
 
 SWHIDish = Union[CoreSWHID, str]
 
@@ -386,12 +389,15 @@ class WebAPIClient:
 
         retry = self._max_retry
         delay = 0.1
-        while retry >= 0:
+        while retry > 0:
             retry -= 1
             r = self._one_call(http_method, url, headers, req_args)
             if r.status_code not in self._retry_status:
                 r.raise_for_status()
                 break
+            if logger.isEnabledFor(logging.DEBUG):
+                msg = f"HTTP RETRY {http_method} {url} delay={delay} remaining-tries={retry}"
+                logger.debug(msg)
             time.sleep(delay)
             delay *= 2
         return r
@@ -399,11 +405,19 @@ class WebAPIClient:
     def _one_call(self, http_method, url, headers, req_args):
         """call on request and update rate limit info if available"""
         assert http_method in ("get", "post", "head"), http_method
+        is_dbg = logger.isEnabledFor(logging.DEBUG)
         rate_limit = self._latest_rate_limit_info
         if rate_limit is not None:
             delay = rate_limit.pratical_delay(time.time())
             if delay > 0:
                 time.sleep(delay)
+        if is_dbg:
+            dbg_msg = f"HTTP CALL {http_method} {url}"
+            if rate_limit is not None:
+                rate_dbg = f" latest-rate-limit-info=%r delay={delay}"
+                rate_dbg %= rate_limit
+                dbg_msg += rate_dbg
+            logger.debug(dbg_msg)
         start = time.monotonic()
         with self._rate_limit_lock:
             if start > self._latest_request_date:
@@ -419,14 +433,21 @@ class WebAPIClient:
             if end > self._latest_request_date:
                 self._latest_request_date = end
 
+        if is_dbg:
+            dbg_msg = f"HTTP REPLY {r.status_code} {http_method} {url}"
+
         rate_limit_header = _parse_limit_header(r)
         if None not in rate_limit_header:
             new = _RateLimitInfo(start, end, *rate_limit_header)
+            if is_dbg:
+                dbg_msg += " rate-limit-info=%r" % new
             with self._rate_limit_lock:
                 existing = self._latest_rate_limit_info
                 if existing is None or new.replacing(existing):
                     # no pre-existing data
                     self._latest_rate_limit_info = new
+        if is_dbg:
+            logger.debug(dbg_msg)
         return r
 
     def _get_snapshot(self, swhid: SWHIDish, typify: bool = True) -> Dict[str, Any]:
