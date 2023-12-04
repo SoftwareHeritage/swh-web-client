@@ -7,8 +7,8 @@ import json
 
 from dateutil.parser import parse as parse_date
 import pytest
-from swh.model.swhids import CoreSWHID
 
+from swh.model.swhids import CoreSWHID
 from swh.web.client.client import typify_json
 
 from .api_data import API_DATA
