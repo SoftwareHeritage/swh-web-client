@@ -650,12 +650,12 @@ class WebAPIClient:
         return r.json()
 
     def cooking_request(
-            self, 
+            self,
             bundle_type:str,
-            swhid: SWHIDish, 
-            email:str = None, 
+            swhid: SWHIDish,
+            email:str = None,
             **req_args
-        ) -> Dict[str,Any]:
+    ) -> Dict[str,Any]:
         """Request a cooking of a bundle
 
         Args:
@@ -685,9 +685,9 @@ class WebAPIClient:
     def cooking_check(
             self,
             bundle_type:str,
-            swhid: SWHIDish, 
+            swhid: SWHIDish,
             **req_args
-        ) -> Dict[str,Any]:
+    ) -> Dict[str,Any]:
         """Check the status of a cooking task
 
         Args:
@@ -714,11 +714,11 @@ class WebAPIClient:
         return r.json()
 
     def cooking_fetch(
-            self, 
+            self,
             bundle_type:str,
             swhid: SWHIDish,
             **req_args
-        ) -> requests.models.Response:
+    ) -> requests.models.Response:
         """Fetch the archive of a cooking task
 
         Args:
