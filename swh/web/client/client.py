@@ -651,9 +651,9 @@ class WebAPIClient:
 
     def cooking_request(
             self,
-            bundle_type:str,
+            bundle_type: str,
             swhid: SWHIDish,
-            email:str = None,
+            email: Optional[str] = None,
             **req_args
     ) -> Dict[str,Any]:
         """Request a cooking of a bundle
