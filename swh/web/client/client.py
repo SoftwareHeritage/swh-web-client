@@ -649,8 +649,13 @@ class WebAPIClient:
         r = self._call(q, http_method="post")
         return r.json()
 
-    def cooking_request(self, bundle_type:str,
-                         swhid: SWHIDish, email:str = None, **req_args) -> Dict[str,Any]:
+    def cooking_request(
+            self, 
+            bundle_type:str,
+            swhid: SWHIDish, 
+            email:str = None, 
+            **req_args
+        ) -> Dict[str,Any]:
         """Request a cooking of a bundle
 
         Args:
@@ -662,7 +667,7 @@ class WebAPIClient:
 
         Returns:
             an object containing the following keys:
-                fetch_url (string): the url from which to download the archive once it has been cooked
+                fetch_url (string): the url from which to download the archive
                 progress_message (string): message describing the cooking task progress
                 id (number): the cooking task id
                 status (string): the cooking task status (new/pending/done/failed)
@@ -677,8 +682,12 @@ class WebAPIClient:
         r.raise_for_status()
         return r.json()
 
-    def cooking_check(self, bundle_type:str,
-                       swhid: SWHIDish, **req_args) -> Dict[str,Any]:
+    def cooking_check(
+            self,
+            bundle_type:str,
+            swhid: SWHIDish, 
+            **req_args
+        ) -> Dict[str,Any]:
         """Check the status of a cooking task
 
         Args:
@@ -689,7 +698,7 @@ class WebAPIClient:
 
         Returns:
             an object containing the following keys:
-                fetch_url (string): the url from which to download the archive once it has been cooked
+                fetch_url (string): the url from which to download the archive
                 progress_message (string): message describing the cooking task progress
                 id (number): the cooking task id
                 status (string): the cooking task status (new/pending/done/failed)
@@ -703,9 +712,13 @@ class WebAPIClient:
         r = self._call(q, http_method="get",**req_args,)
         r.raise_for_status()
         return r.json()
-    
-    def cooking_fetch(self, bundle_type:str,
-                       swhid: SWHIDish, **req_args)->requests.models.Response:
+
+    def cooking_fetch(
+            self, 
+            bundle_type:str,
+            swhid: SWHIDish,
+            **req_args
+        ) -> requests.models.Response:
         """Fetch the archive of a cooking task
 
         Args:
