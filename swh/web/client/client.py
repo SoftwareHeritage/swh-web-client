@@ -648,3 +648,77 @@ class WebAPIClient:
         q = f"origin/save/{visit_type}/url/{origin}/"
         r = self._call(q, http_method="post")
         return r.json()
+    
+    def cooking_request(self, bundle_type:str, swhid: SWHIDish, email:str=None,**req_args)->Dict[str,Any]:
+        """Request a cooking of a bundle
+
+        Args:
+            bundle_type: Type of the bundle
+            swhid: object persistent identifier
+            email: e-mail to notify when the archive is ready
+            req_args: extra keyword arguments for requests.post()
+
+
+        Returns:
+            an object containing the following keys:
+                fetch_url (string): the url from which to download the archive once it has been cooked
+                progress_message (string): message describing the cooking task progress
+                id (number): the cooking task id
+                status (string): the cooking task status (new/pending/done/failed)
+                swhid (string): the identifier of the object to cook
+
+        Raises:
+            requests.HTTPError: if HTTP request fails
+
+        """
+        q = f"vault/{bundle_type}/{swhid}/"
+        r = self._call(q, http_method="post", json={"email":email},**req_args,)
+        r.raise_for_status()
+        return r.json()
+    
+    def cooking_check(self, bundle_type:str, swhid: SWHIDish, **req_args)->Dict[str,Any]:
+        """Check the status of a cooking task
+
+        Args:
+            bundle_type: Type of the bundle
+            swhid: object persistent identifier
+            req_args: extra keyword arguments for requests.get()
+
+
+        Returns:
+            an object containing the following keys:
+                fetch_url (string): the url from which to download the archive once it has been cooked
+                progress_message (string): message describing the cooking task progress
+                id (number): the cooking task id
+                status (string): the cooking task status (new/pending/done/failed)
+                swhid (string): the identifier of the object to cook
+
+        Raises:
+            requests.HTTPError: if HTTP request fails
+
+        """
+        q = f"vault/{bundle_type}/{swhid}/"
+        r = self._call(q, http_method="get",**req_args,)
+        r.raise_for_status()
+        return r.json()
+    
+    def cooking_fetch(self, bundle_type:str, swhid: SWHIDish, **req_args)->requests.models.Response:
+        """Fetch the archive of a cooking task
+
+        Args:
+            bundle_type: Type of the bundle
+            swhid: object persistent identifier
+            req_args: extra keyword arguments for requests.get()
+
+
+        Returns:
+            a requests.models.Response object containing a stream of the archive
+
+        Raises:
+            requests.HTTPError: if HTTP request fails
+
+        """
+        q = f"vault/{bundle_type}/{swhid}/raw"
+        r = self._call(q, http_method="get",stream=True,**req_args,)
+        r.raise_for_status()
+        return r
