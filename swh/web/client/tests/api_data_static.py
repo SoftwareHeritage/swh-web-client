@@ -5,6 +5,7 @@
 
 
 API_DATA_STATIC = {
+    "post":{
     "origin/save/git/url/https://gitlab.org/gazelle/itest/": r"""
   {
     "visit_type": "git",
@@ -35,4 +36,28 @@ API_DATA_STATIC = {
     "visit_date": null
   }
     """,
+    "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
+    {
+    "fetch_url": "https://archive.softwareheritage.org/api/1/vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw/",
+    "id": 415999462,
+    "progress_message": "Processing...",
+    "status": "pending",
+    "swhid": "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6"
+  }
+    """,
+    },
+    "get":{
+      "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
+      {
+    "fetch_url": "https://archive.softwareheritage.org/api/1/vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw/",
+    "id": 415999462,
+    "progress_message": "Processing...",
+    "status": "pending",
+    "swhid": "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6"
+      }
+      """,
+      "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw": r"""
+      "OCTET_STREAM_MOCK"
+      """,
+    }
 }
