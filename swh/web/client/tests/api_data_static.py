@@ -38,8 +38,8 @@ API_DATA_STATIC = {
         """,
         "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
       {
-        "fetch_url": "https://archive.softwareheritage.org/api/1/vault/flat"+
-        "/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw/",
+        "fetch_url":
+          "https://archive.softwareheritage.org/api/1/vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw/",
         "id": 415999462,
         "progress_message": "Processing...",
         "status": "pending",
@@ -50,8 +50,8 @@ API_DATA_STATIC = {
     "get": {
         "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
       {
-        "fetch_url": "https://archive.softwareheritage.org/api/1/vault/flat/"+
-        "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw/",
+        "fetch_url": 
+          "https://archive.softwareheritage.org/api/1/vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw/",
         "id": 415999462,
         "progress_message": "Processing...",
         "status": "pending",
