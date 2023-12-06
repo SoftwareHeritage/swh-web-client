@@ -291,3 +291,28 @@ def test_iter(web_api_client, web_api_mock, swhid, swhid_type, typify):
             )
         else:
             assert list(web_api_client.iter(swhid, typify=typify))
+
+def test_cooking_request(web_api_client, web_api_mock):
+    dir_swhid = "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6"
+    obj = web_api_client.cooking_request("flat",dir_swhid)
+    assert obj["fetch_url"] == "https://archive.softwareheritage.org/api/1/vault/flat/"+dir_swhid+"/raw/"
+    assert obj["status"] == "pending" 
+    assert obj["swhid"] == dir_swhid
+    assert obj["id"] == 415999462
+    assert obj["progress_message"] == "Processing..."
+
+def test_cooking_check(web_api_client, web_api_mock):
+    dir_swhid = "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6"
+    obj = web_api_client.cooking_check("flat",dir_swhid)
+    assert obj["fetch_url"] == "https://archive.softwareheritage.org/api/1/vault/flat/"+dir_swhid+"/raw/"
+    assert obj["status"] == "pending" 
+    assert obj["swhid"] == dir_swhid
+    assert obj["id"] == 415999462
+    assert obj["progress_message"] == "Processing..."
+
+
+def test_cooking_fetch(web_api_client, web_api_mock):
+    dir_swhid = "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6"
+    obj = web_api_client.cooking_fetch("flat",dir_swhid)
+    assert obj.content.find(b"OCTET_STREAM_MOCK") != -1
+    
