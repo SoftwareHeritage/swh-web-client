@@ -5,8 +5,8 @@
 
 
 API_DATA_STATIC = {
-    "post":{
-      "origin/save/git/url/https://gitlab.org/gazelle/itest/": r"""
+  "post":{
+    "origin/save/git/url/https://gitlab.org/gazelle/itest/": r"""
       {
         "visit_type": "git",
         "origin_url": "https://gitlab.org/gazelle/itest",
@@ -16,7 +16,7 @@ API_DATA_STATIC = {
         "visit_date": null
       }
         """,
-        "origin/save/git/url/https://git.renater.fr/anonscm/git/6po/6po.git/": r"""
+      "origin/save/git/url/https://git.renater.fr/anonscm/git/6po/6po.git/": r"""
       {
         "visit_type": "git",
         "origin_url": "https://git.renater.fr/anonscm/git/6po/6po.git",
@@ -26,7 +26,7 @@ API_DATA_STATIC = {
         "visit_date": null
       }
         """,
-        "origin/save/git/url/https://github.com/colobot/colobot/": r"""
+      "origin/save/git/url/https://github.com/colobot/colobot/": r"""
       {
         "visit_type": "git",
         "origin_url": "https://github.com/colobot/colobot",
@@ -36,7 +36,7 @@ API_DATA_STATIC = {
         "visit_date": null
       }
         """,
-        "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
+      "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
       {
         "fetch_url": "https://archive.softwareheritage.org/api/1/vault/flat"+
         "/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw/",
@@ -47,8 +47,8 @@ API_DATA_STATIC = {
       }
         """,
     },
-    "get":{
-      "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
+  "get":{
+    "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/": r"""
       {
         "fetch_url": "https://archive.softwareheritage.org/api/1/vault/flat/"+
         "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw/",
@@ -58,8 +58,8 @@ API_DATA_STATIC = {
         "swhid": "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6"
       }
         """,
-        "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw": r"""
-        "OCTET_STREAM_MOCK"
+    "vault/flat/swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6/raw": r"""
+      "OCTET_STREAM_MOCK"
         """,
     }
-}
+  } 
