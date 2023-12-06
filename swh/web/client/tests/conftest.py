@@ -47,8 +47,12 @@ def web_api_mock(requests_mock):
     requests_mock.register_uri("POST", f"{API_URL}/known/", json=known_callback)
 
     # Add some other post urls to mock
-    for api_call, data in API_DATA_STATIC.items():
+    for api_call, data in API_DATA_STATIC["post"].items():
         requests_mock.post(f"{API_URL}/{api_call}", text=data)
+
+    # Add some other get urls to mock
+    for api_call, data in API_DATA_STATIC["get"].items():
+        requests_mock.get(f"{API_URL}/{api_call}", text=data)
 
     return requests_mock
 
