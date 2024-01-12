@@ -29,15 +29,22 @@ conversions and pagination.
 """
 
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterator, List, Optional, Union
+import itertools
+import logging
+import threading
+import time
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import dateutil.parser
 import requests
+import requests.status_codes
 
 from swh.model.hashutil import hash_to_bytes, hash_to_hex
 from swh.model.swhids import CoreSWHID, ObjectType
 from swh.web.client.cli import DEFAULT_CONFIG
+
+logger = logging.getLogger(__name__)
 
 SWHIDish = Union[CoreSWHID, str]
 
@@ -132,6 +139,181 @@ def typify_json(data: Any, obj_type: str) -> Any:
     return data
 
 
+def _parse_limit_header(response) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+    """parse the X-RateLimit Headers if any
+
+    return a `(Limit, Remaining, Reset)` tuple
+
+    Limit:     containing the requests quota in the time window;
+    Remaining: containing the remaining requests quota in the current window;
+    Reset:     date of the current windows reset, as UTC second.
+    """
+    limit = response.headers.get("X-RateLimit-Limit")
+    if limit is not None:
+        limit = int(limit)
+    remaining = response.headers.get("X-RateLimit-Remaining")
+    if remaining is not None:
+        remaining = int(remaining)
+    reset = response.headers.get("X-RateLimit-Reset")
+    if reset is not None:
+        reset = int(reset)
+    return (limit, remaining, reset)
+
+
+class _RateLimitInfo:
+    """Object that hold rate limit information and can compute delay
+
+    >>> reset = 150
+    >>> ### test replacement logic
+    >>> # some old information to replace
+    >>> old = _RateLimitInfo(42, 44, 1000, 800, reset)
+    >>> # some information with the same date but lower budget
+    >>> new = _RateLimitInfo(42, 44, 1000, 700, reset)
+    >>> # some information with a later window
+    >>> newer = _RateLimitInfo(42, 44, 1000, 100, reset * 2)
+    >>> # the old one is replaced by a lower budget
+    >>> assert new.replacing(old)
+    >>> # the later window replace the older window
+    >>> assert newer.replacing(old)
+    >>> assert newer.replacing(new)
+    >>> ### test delay logic
+    >>> # if the budget is fully available we expect no delay
+    >>> full = _RateLimitInfo(42, 42, 1000, 1000, reset)
+    >>> # whatever the remaining windows is
+    >>> assert full.pratical_delay(50) == 0
+    >>> assert full.pratical_delay(100) == 0
+    >>> # if the budget is half consumed we expect a delay
+    >>> half = _RateLimitInfo(42, 42, 1000, 500, reset)
+    >>> delay_100w = half.pratical_delay(50)
+    >>> assert 0 < delay_100w < half.MAX_SLOW_FACTOR
+    >>> # smaller windows means smaller delay
+    >>> delay_50w = half.pratical_delay(100)
+    >>> assert 0 < delay_50w < half.MAX_SLOW_FACTOR
+    >>> assert (delay_100w / 2.1) < delay_50w < (delay_100w / 1.9)
+    """
+
+    # see usage code for documentation
+    SLOW_DOWN_RATIO = 0.9
+    MIN_SLOW_FACTOR = 0.1
+    MAX_SLOW_FACTOR = 10
+    SLOW_POWER = 4
+
+    def __init__(self, start, end, limit, remaining, reset):
+        self.start = start
+        self.end = end
+        self.limit = limit
+        self.remaining = remaining
+        self.reset_date = reset
+
+        self.remaining_ratio = self.remaining / self.limit
+
+    def __repr__(self):
+        r = "<RateLimitInfo start=%s, end=%s, budget=%d/%d, reset_date=%d>"
+        r %= (self.start, self.end, self.remaining, self.limit, self.reset_date)
+        return r
+
+    def replacing(self, other):
+
+        if other.reset_date != self.reset_date:
+            # the one with a later reset date is likely more up to date.
+            return other.reset_date < self.reset_date
+
+        # new info are strictly newer than existing one
+        if other.end < self.start:
+            return True
+
+        # new info are strictly older than existing one
+        if other.end < self.start:
+            return False
+
+        # information overlap, keep the stricter one
+        return self.remaining_ratio < other.remaining_ratio
+
+    def theoretical_delay(self, current_date):
+        """theoretical necessary delay between request until the end of the windows
+
+        If request are issued at this interval, they will match the request
+        rate limit from the server.
+
+        Value is return in second"""
+        timeframe = self.reset_date - current_date
+
+        if timeframe <= 0:
+            # the reset date is passed, no rate limiting to apply
+            return 0
+
+        return timeframe / self.remaining
+
+    def pratical_delay(self, current_date):
+        """return current appropriate request delay in second
+
+        how much we should wait before each issuing a new request if we want
+        to avoid depleting the budget early
+        That logic is not very elaborate for now and has various limitation. For example:
+        - the delay should be dynamic and take in account the age the information,
+        - we don't account for potential multiple thread
+        """
+        if self.remaining <= 0:
+            # no more credit, we can just wait.
+            #
+            # We wait a bit more since reaching zero budget is a failure in
+            # itself.
+            delay = self.reset_date - current_date
+            delay *= 1.1
+            return delay
+
+        delay = self.theoretical_delay(current_date)
+        # We do not introduce delay for the initial part of the budget.
+        #
+        # We do not want to slow down a small burst of request.
+        # that ratio is controlled by SLOW_DOWN_RATIO.
+        if delay <= 0 or self.remaining_ratio > self.SLOW_DOWN_RATIO:
+            return 0
+
+        # The remaining budget start to be limited, we are going to delay
+        # request to match a rate that allow us to keep issuing requests until
+        # the windows is reset
+        #
+        # The lower the budget, the longer we delay request, waiting more than
+        # what is strictly necessary. This is intended to help cope with other
+        # Client chipping at the same budget.
+        #
+        # when SLOW_DOWN_RATIO is reached, such factor will be
+        # MIN_SLOW_FACTOR at the start and MAX_SLOW_FACTOR at the end. That
+        # factor will evolve using a xʸ curve. Where y is SLOW_POWER.
+        assert 0 <= self.SLOW_DOWN_RATIO <= 1
+        assert self.MIN_SLOW_FACTOR < self.MAX_SLOW_FACTOR
+        assert 0 < self.SLOW_POWER
+        start = self.MIN_SLOW_FACTOR ** (1 / self.SLOW_POWER)
+        end = self.MAX_SLOW_FACTOR ** (1 / self.SLOW_POWER)
+        used_up = 1 - (self.remaining_ratio / self.SLOW_DOWN_RATIO)
+        x = start + ((end - start) * used_up)
+        factor = x**self.SLOW_POWER
+
+        if factor <= 0:
+            # let us avoid negative delay in case MIN_SLOW_FACTOR allows for it.
+            return 0
+
+        return delay * factor
+
+
+# The maximum amount of SWHID that one can request in a single `known` request
+KNOWN_QUERY_LIMIT = 1000
+
+
+def _get_known_chunk(swhids):
+    """slice a list of `swhids` into smaller list of size KNOWN_QUERY_LIMIT"""
+    for i in range(0, len(swhids), KNOWN_QUERY_LIMIT):
+        yield swhids[i : i + KNOWN_QUERY_LIMIT]
+
+
+MAX_RETRY = 10
+
+DEFAULT_RETRY_REASONS = {
+    requests.status_codes.codes.TOO_MANY_REQUESTS,
+}
+
+
 class WebAPIClient:
     """Client for the Software Heritage archive Web API, see :swh_web:`api/`"""
 
@@ -139,6 +321,8 @@ class WebAPIClient:
         self,
         api_url: str = DEFAULT_CONFIG["api_url"],
         bearer_token: Optional[str] = DEFAULT_CONFIG["bearer_token"],
+        request_retry=MAX_RETRY,
+        retry_status=DEFAULT_RETRY_REASONS,
     ):
         """Create a client for the Software Heritage Web API
 
@@ -154,6 +338,8 @@ class WebAPIClient:
         self.api_url = api_url
         self.api_path = u.path
         self.bearer_token = bearer_token
+        self._max_retry = request_retry
+        self._retry_status = retry_status
 
         self._getters: Dict[ObjectType, Callable[[SWHIDish, bool], Any]] = {
             ObjectType.CONTENT: self.content,
@@ -162,6 +348,12 @@ class WebAPIClient:
             ObjectType.REVISION: self.revision,
             ObjectType.SNAPSHOT: self._get_snapshot,
         }
+        # assume we will do multiple call and keep the connection alive
+        self._session = requests.Session()
+
+        self._rate_limit_lock = threading.Lock()
+        self._latest_request_date = 0
+        self._latest_rate_limit_info = None
 
     def _call(
         self, query: str, http_method: str = "get", **req_args
@@ -182,23 +374,80 @@ class WebAPIClient:
             url = query
         else:  # relative URL; prepend base API URL
             url = "/".join([self.api_url, query])
-        r = None
 
         headers = {}
         if self.bearer_token is not None:
             headers = {"Authorization": f"Bearer {self.bearer_token}"}
 
-        if http_method == "get":
-            r = requests.get(url, **req_args, headers=headers)
-            r.raise_for_status()
-        elif http_method == "post":
-            r = requests.post(url, **req_args, headers=headers)
-            r.raise_for_status()
-        elif http_method == "head":
-            r = requests.head(url, **req_args, headers=headers)
-        else:
+        if http_method not in ("get", "post", "head"):
             raise ValueError(f"unsupported HTTP method: {http_method}")
 
+        return self._retryable_call(http_method, url, headers, req_args)
+
+    def _retryable_call(self, http_method, url, headers, req_args):
+        assert http_method in ("get", "post", "head"), http_method
+
+        retry = self._max_retry
+        delay = 0.1
+        while retry > 0:
+            retry -= 1
+            r = self._one_call(http_method, url, headers, req_args)
+            if r.status_code not in self._retry_status:
+                r.raise_for_status()
+                break
+            if logger.isEnabledFor(logging.DEBUG):
+                msg = f"HTTP RETRY {http_method} {url} delay={delay} remaining-tries={retry}"
+                logger.debug(msg)
+            time.sleep(delay)
+            delay *= 2
+        return r
+
+    def _one_call(self, http_method, url, headers, req_args):
+        """call on request and update rate limit info if available"""
+        assert http_method in ("get", "post", "head"), http_method
+        is_dbg = logger.isEnabledFor(logging.DEBUG)
+        rate_limit = self._latest_rate_limit_info
+        if rate_limit is not None:
+            delay = rate_limit.pratical_delay(time.time())
+            if delay > 0:
+                time.sleep(delay)
+        if is_dbg:
+            dbg_msg = f"HTTP CALL {http_method} {url}"
+            if rate_limit is not None:
+                rate_dbg = f" latest-rate-limit-info=%r delay={delay}"
+                rate_dbg %= rate_limit
+                dbg_msg += rate_dbg
+            logger.debug(dbg_msg)
+        start = time.monotonic()
+        with self._rate_limit_lock:
+            if start > self._latest_request_date:
+                self._latest_request_date = start
+        if http_method == "get":
+            r = self._session.get(url, **req_args, headers=headers)
+        elif http_method == "post":
+            r = self._session.post(url, **req_args, headers=headers)
+        elif http_method == "head":
+            r = self._session.head(url, **req_args, headers=headers)
+        end = time.monotonic()
+        with self._rate_limit_lock:
+            if end > self._latest_request_date:
+                self._latest_request_date = end
+
+        if is_dbg:
+            dbg_msg = f"HTTP REPLY {r.status_code} {http_method} {url}"
+
+        rate_limit_header = _parse_limit_header(r)
+        if None not in rate_limit_header:
+            new = _RateLimitInfo(start, end, *rate_limit_header)
+            if is_dbg:
+                dbg_msg += " rate-limit-info=%r" % new
+            with self._rate_limit_lock:
+                existing = self._latest_rate_limit_info
+                if existing is None or new.replacing(existing):
+                    # no pre-existing data
+                    self._latest_rate_limit_info = new
+        if is_dbg:
+            logger.debug(dbg_msg)
         return r
 
     def _get_snapshot(self, swhid: SWHIDish, typify: bool = True) -> Dict[str, Any]:
@@ -427,7 +676,7 @@ class WebAPIClient:
         return typify_json(visit, ORIGIN_VISIT) if typify else visit
 
     def known(
-        self, swhids: Iterator[SWHIDish], **req_args
+        self, swhids: Iterable[SWHIDish], **req_args
     ) -> Dict[CoreSWHID, Dict[Any, Any]]:
         """Verify the presence in the archive of several objects at once
 
@@ -443,10 +692,15 @@ class WebAPIClient:
             requests.HTTPError: if HTTP request fails
 
         """
-        r = self._call(
-            "known/", http_method="post", json=list(map(str, swhids)), **req_args
-        )
-        return {CoreSWHID.from_string(k): v for k, v in r.json().items()}
+        all_swh_ids = list(swhids)
+        chunks = _get_known_chunk(all_swh_ids)
+        all_results = []
+        for c in chunks:
+            ids = list(map(str, c))
+            r = self._call("known/", http_method="post", json=ids, **req_args)
+            all_results.append(r.json())
+        results = itertools.chain.from_iterable(e.items() for e in all_results)
+        return {CoreSWHID.from_string(k): v for k, v in results}
 
     def content_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a content object exists in the archive
@@ -648,6 +902,20 @@ class WebAPIClient:
         q = f"origin/save/{visit_type}/url/{origin}/"
         r = self._call(q, http_method="post")
         return r.json()
+
+    def get_origin(self, swhid: CoreSWHID) -> Optional[Any]:
+        """Walk the compressed graph to discover the origin of a given swhid
+
+        This method exist for the swh-scanner and is likely to change
+        significantly and/or be replaced, we do not recommend using it.
+        """
+        key = str(swhid)
+        q = (
+            f"graph/randomwalk/{key}/ori/"
+            f"?direction=backward&limit=-1&resolve_origins=true"
+        )
+        with self._call(q, http_method="get") as r:
+            return r.text
 
     def cooking_request(
             self,

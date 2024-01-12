@@ -8,10 +8,10 @@ import os
 import pytest
 import yaml
 
-from swh.web.client.client import WebAPIClient
+from swh.web.client.client import KNOWN_QUERY_LIMIT, WebAPIClient
 
 from .api_data import API_DATA, API_URL
-from .api_data_static import API_DATA_STATIC
+from .api_data_static import API_DATA_STATIC, KNOWN_SWHIDS
 
 
 @pytest.fixture
@@ -35,14 +35,10 @@ def web_api_mock(requests_mock):
         requests_mock.get(f"{API_URL}/{api_call}", text=data, headers=headers)
 
     def known_callback(request, context):
-        known_swhids = [
-            "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
-            "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
-            "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
-            "swh:1:rel:208f61cc7a5dbc9879ae6e5c2f95891e270f09ef",
-            "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
-        ]
-        return {swhid: {"known": swhid in known_swhids} for swhid in request.json()}
+        swhids = request.json()
+        if len(swhids) > KNOWN_QUERY_LIMIT:
+            raise RuntimeError("Too many swhids in the queries")
+        return {swhid: {"known": swhid in KNOWN_SWHIDS} for swhid in swhids}
 
     requests_mock.register_uri("POST", f"{API_URL}/known/", json=known_callback)
 
