@@ -213,7 +213,6 @@ class _RateLimitInfo:
         return r
 
     def replacing(self, other):
-
         if other.reset_date != self.reset_date:
             # the one with a later reset date is likely more up to date.
             return other.reset_date < self.reset_date
@@ -918,12 +917,8 @@ class WebAPIClient:
             return r.text
 
     def cooking_request(
-            self,
-            bundle_type: str,
-            swhid: SWHIDish,
-            email: Optional[str] = None,
-            **req_args
-    ) -> Dict[str,Any]:
+        self, bundle_type: str, swhid: SWHIDish, email: Optional[str] = None, **req_args
+    ) -> Dict[str, Any]:
         """Request a cooking of a bundle
 
         Args:
@@ -946,16 +941,18 @@ class WebAPIClient:
 
         """
         q = f"vault/{bundle_type}/{swhid}/"
-        r = self._call(q, http_method="post", json={"email":email},**req_args,)
+        r = self._call(
+            q,
+            http_method="post",
+            json={"email": email},
+            **req_args,
+        )
         r.raise_for_status()
         return r.json()
 
     def cooking_check(
-            self,
-            bundle_type:str,
-            swhid: SWHIDish,
-            **req_args
-    ) -> Dict[str,Any]:
+        self, bundle_type: str, swhid: SWHIDish, **req_args
+    ) -> Dict[str, Any]:
         """Check the status of a cooking task
 
         Args:
@@ -977,15 +974,16 @@ class WebAPIClient:
 
         """
         q = f"vault/{bundle_type}/{swhid}/"
-        r = self._call(q, http_method="get",**req_args,)
+        r = self._call(
+            q,
+            http_method="get",
+            **req_args,
+        )
         r.raise_for_status()
         return r.json()
 
     def cooking_fetch(
-            self,
-            bundle_type:str,
-            swhid: SWHIDish,
-            **req_args
+        self, bundle_type: str, swhid: SWHIDish, **req_args
     ) -> requests.models.Response:
         """Fetch the archive of a cooking task
 
@@ -1003,6 +1001,11 @@ class WebAPIClient:
 
         """
         q = f"vault/{bundle_type}/{swhid}/raw"
-        r = self._call(q, http_method="get",stream=True,**req_args,)
+        r = self._call(
+            q,
+            http_method="get",
+            stream=True,
+            **req_args,
+        )
         r.raise_for_status()
         return r
