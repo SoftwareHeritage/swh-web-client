@@ -1,2 +1,2 @@
 [swh.cli.subcommands]
-web = swh.web.client.cli
+swh.web.client = swh.web.client.cli
