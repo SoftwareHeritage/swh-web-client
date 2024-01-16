@@ -4,14 +4,18 @@
 # See top-level LICENSE file for more information
 
 import json
+import random
 
 from dateutil.parser import parse as parse_date
 import pytest
+from requests.exceptions import HTTPError
 
+from swh.model.hashutil import hash_to_hex
 from swh.model.swhids import CoreSWHID
-from swh.web.client.client import typify_json
+from swh.web.client.client import KNOWN_QUERY_LIMIT, typify_json
 
-from .api_data import API_DATA
+from .api_data import API_DATA, API_URL
+from .api_data_static import KNOWN_SWHIDS
 
 
 def test_get_content(web_api_client, web_api_mock):
@@ -25,6 +29,33 @@ def test_get_content(web_api_client, web_api_mock):
     assert obj["checksums"]["sha1"] == "dc2830a9e72f23c1dfebef4413003221baa5fb62"
 
     assert obj == web_api_client.content(swhid)
+
+
+def test_get_retry(web_api_client, web_api_mock):
+    swhid = CoreSWHID.from_string("swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1")
+    url = f"{API_URL}/content/sha1_git:{hash_to_hex(swhid.object_id)}/"
+
+    # return 429 only three time
+    limited_uses = [None, None, None]
+
+    def limited_matcher(*args, **kwargs):
+        ret = not limited_uses
+        if ret:
+            limited_uses.pop()
+        return ret
+
+    web_api_mock.get(url, status_code=429, additional_matcher=limited_matcher)
+
+    # the call should work and return an object,
+    # the 429 automatically result in a retry after some delay
+    obj = web_api_client.content(swhid)
+    assert obj["checksums"]["sha1_git"] == str(swhid).split(":")[3]
+
+    web_api_mock.get(url, status_code=405)
+
+    # the call should fail
+    with pytest.raises(HTTPError):
+        web_api_client.content(swhid)
 
 
 def test_get_directory(web_api_client, web_api_mock):
@@ -117,7 +148,6 @@ def test_iter_snapshot(web_api_client, web_api_mock):
 
 
 def test_authentication(web_api_client, web_api_mock):
-
     rel_id = "b9db10d00835e9a43e2eebef2db1d04d4ae82342"
     url = f"{web_api_client.api_url}/release/{rel_id}/"
 
@@ -184,7 +214,7 @@ def test_origin_search(web_api_client, web_api_mock):
             "https://archive.softwareheritage.org/api/1/origin/https://bitbucket.org/foobarbazqux/rp.git/visits/",  # NoQA: B950
         ),
     ]
-    for (url, visit) in expected:
+    for url, visit in expected:
         assert url in actual_urls
         assert visit in actual_visits
 
@@ -206,23 +236,29 @@ def test_origin_save(visit_type, origin, web_api_client, web_api_mock):
     assert save_request["visit_date"] is None
 
 
-def test_known(web_api_client, web_api_mock):
-    # full list of SWHIDs for which we mock a {known: True} answer
-    known_swhids = [
-        "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
-        "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
-        "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
-        "swh:1:rel:208f61cc7a5dbc9879ae6e5c2f95891e270f09ef",
-        "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
-    ]
+def _query_known(web_api_client, query_size):
+    known_swhids = sorted(KNOWN_SWHIDS, key=lambda x: x[::-1])[:query_size]
     bogus_swhids = [s[:20] + "c0ffee" + s[26:] for s in known_swhids]
     all_swhids = known_swhids + bogus_swhids
+    random.shuffle(all_swhids)
 
     known_res = web_api_client.known(all_swhids)
 
     assert {str(k) for k in known_res} == set(all_swhids)
     for swhid, info in known_res.items():
-        assert info["known"] == (str(swhid) in known_swhids)
+        assert info["known"] == (str(swhid) in KNOWN_SWHIDS)
+
+
+def test_known_small(web_api_client, web_api_mock):
+    """check a query that is smaller than the limit"""
+    query_size = KNOWN_QUERY_LIMIT // 10
+    _query_known(web_api_client, query_size)
+
+
+def test_known_large(web_api_client, web_api_mock):
+    """check a query that is higher than the limit"""
+    query_size = KNOWN_QUERY_LIMIT * 3
+    _query_known(web_api_client, query_size)
 
 
 def test_get_json(web_api_client, web_api_mock):
@@ -262,3 +298,63 @@ def test_typify_json_minimal_revision():
     pid = "swh:1:rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     assert revision_typed["id"] == CoreSWHID.from_string(pid)
     assert revision_typed["date"] is None
+
+
+@pytest.mark.parametrize(
+    "swhid",
+    [
+        "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
+        "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
+        "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
+        "swh:1:rel:b9db10d00835e9a43e2eebef2db1d04d4ae82342",
+        "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
+    ],
+)
+@pytest.mark.parametrize("swhid_type", ["str", "CoreSWHID"])
+@pytest.mark.parametrize("typify", [True, False])
+def test_iter(web_api_client, web_api_mock, swhid, swhid_type, typify):
+    # full list of SWHIDs for which we mock a {known: True} answer
+    swhids = [
+        "swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1",
+        "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6",
+        "swh:1:rev:aafb16d69fd30ff58afdd69036a26047f3aebdc6",
+        "swh:1:rel:b9db10d00835e9a43e2eebef2db1d04d4ae82342",
+        "swh:1:snp:6a3a2cf0b2b90ce7ae1cf0a221ed68035b686f5a",
+    ]
+    for swhid in swhids:
+        if swhid_type == "CoreSWHID":
+            assert list(
+                web_api_client.iter(CoreSWHID.from_string(swhid), typify=typify)
+            )
+        else:
+            assert list(web_api_client.iter(swhid, typify=typify))
+
+
+def test_cooking_request(web_api_client, web_api_mock):
+    dir_swhid = "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6"
+    obj = web_api_client.cooking_request("flat", dir_swhid)
+    assert obj["fetch_url"] == (
+        "https://archive.softwareheritage.org/api/1/vault/flat/" + dir_swhid + "/raw/"
+    )
+    assert obj["status"] == "pending"
+    assert obj["swhid"] == dir_swhid
+    assert obj["id"] == 415999462
+    assert obj["progress_message"] == "Processing..."
+
+
+def test_cooking_check(web_api_client, web_api_mock):
+    dir_swhid = "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6"
+    obj = web_api_client.cooking_check("flat", dir_swhid)
+    assert obj["fetch_url"] == (
+        "https://archive.softwareheritage.org/api/1/vault/flat/" + dir_swhid + "/raw/"
+    )
+    assert obj["status"] == "pending"
+    assert obj["swhid"] == dir_swhid
+    assert obj["id"] == 415999462
+    assert obj["progress_message"] == "Processing..."
+
+
+def test_cooking_fetch(web_api_client, web_api_mock):
+    dir_swhid = "swh:1:dir:977fc4b98c0e85816348cebd3b12026407c368b6"
+    obj = web_api_client.cooking_fetch("flat", dir_swhid)
+    assert obj.content.find(b"OCTET_STREAM_MOCK") != -1

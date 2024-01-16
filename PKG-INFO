@@ -1,14 +1,13 @@
 Metadata-Version: 2.1
 Name: swh.web.client
-Version: 0.6.0
+Version: 0.8.0
 Summary: Software Heritage Web client
-Home-page: https://forge.softwareheritage.org/source/swh-web-client/
-Author: Software Heritage developers
-Author-email: swh-devel@inria.fr
-Project-URL: Bug Reports, https://forge.softwareheritage.org/maniphest
+Author-email: Software Heritage developers <swh-devel@inria.fr>
+Project-URL: Homepage, https://gitlab.softwareheritage.org/swh/devel/swh-web-client
+Project-URL: Bug Reports, https://gitlab.softwareheritage.org/swh/devel/swh-web-client/-/issues
 Project-URL: Funding, https://www.softwareheritage.org/donate
-Project-URL: Source, https://forge.softwareheritage.org/source/swh-web-client
 Project-URL: Documentation, https://docs.softwareheritage.org/devel/swh-web-client/
+Project-URL: Source, https://gitlab.softwareheritage.org/swh/devel/swh-web-client.git
 Classifier: Programming Language :: Python :: 3
 Classifier: Intended Audience :: Developers
 Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
@@ -16,9 +15,21 @@ Classifier: Operating System :: OS Independent
 Classifier: Development Status :: 3 - Alpha
 Requires-Python: >=3.7
 Description-Content-Type: text/x-rst
-Provides-Extra: testing
 License-File: LICENSE
 License-File: AUTHORS
+Requires-Dist: click
+Requires-Dist: python-dateutil
+Requires-Dist: requests
+Requires-Dist: swh.auth>=0.6
+Requires-Dist: swh.core>=0.3
+Requires-Dist: swh.model
+Provides-Extra: testing
+Requires-Dist: pytest; extra == "testing"
+Requires-Dist: pytest-mock; extra == "testing"
+Requires-Dist: requests_mock; extra == "testing"
+Requires-Dist: types-python-dateutil; extra == "testing"
+Requires-Dist: types-pyyaml; extra == "testing"
+Requires-Dist: types-requests; extra == "testing"
 
 Software Heritage - Web client
 ==============================
