@@ -1,3 +1,11 @@
+swh-web-client (0.8.0-1~swh1) unstable-swh; urgency=medium
+
+  * New upstream release 0.8.0     - (tagged by David Douard
+    <david.douard@sdfa3.org> on 2024-01-16 17:00:01 +0100)
+  * Upstream changes:     - v0.8.0
+
+ -- Software Heritage autobuilder (on jenkins-debian1) <jenkins@jenkins-debian1.internal.softwareheritage.org>  Tue, 16 Jan 2024 16:03:16 +0000
+
 swh-web-client (0.6.0-1~swh1) unstable-swh; urgency=medium
 
   * New upstream release 0.6.0     - (tagged by Antoine R. Dumont
