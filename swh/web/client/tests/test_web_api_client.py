@@ -5,6 +5,7 @@
 
 import json
 import random
+import time
 
 from dateutil.parser import parse as parse_date
 import pytest
@@ -31,12 +32,11 @@ def test_get_content(web_api_client, web_api_mock):
     assert obj == web_api_client.content(swhid)
 
 
-def test_get_retry(web_api_client, web_api_mock):
-    swhid = CoreSWHID.from_string("swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1")
-    url = f"{API_URL}/content/sha1_git:{hash_to_hex(swhid.object_id)}/"
+def limit_call(count=1):
+    """build a function that will match a limited number of time"""
 
-    # return 429 only three time
-    limited_uses = [None, None, None]
+    # return rate limit info only once
+    limited_uses = [None] * count
 
     def limited_matcher(*args, **kwargs):
         ret = not limited_uses
@@ -44,7 +44,15 @@ def test_get_retry(web_api_client, web_api_mock):
             limited_uses.pop()
         return ret
 
-    web_api_mock.get(url, status_code=429, additional_matcher=limited_matcher)
+    return limited_matcher
+
+
+def test_get_retry(web_api_client, web_api_mock):
+    swhid = CoreSWHID.from_string("swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1")
+    url = f"{API_URL}/content/sha1_git:{hash_to_hex(swhid.object_id)}/"
+
+    # return 429 only three time
+    web_api_mock.get(url, status_code=429, additional_matcher=limit_call(3))
 
     # the call should work and return an object,
     # the 429 automatically result in a retry after some delay
@@ -56,6 +64,182 @@ def test_get_retry(web_api_client, web_api_mock):
     # the call should fail
     with pytest.raises(HTTPError):
         web_api_client.content(swhid)
+
+
+def rate_headers(remaining: int, limit: int, reset_date: int):
+    return {
+        "X-RateLimit-Limit": str(limit),
+        "X-RateLimit-Remaining": str(remaining),
+        "X-RateLimit-Reset": str(reset_date),
+    }
+
+
+def _smoke_rate_limit(web_api_client, web_api_mock, events):
+    """Run a simple smoke test scenario for Rate Limiting
+
+    The `events` is a list of tuple representing requests::
+
+        (prior_sleep, remaining budget, total_budget_windows, window_end)
+
+    note: Since this use actual timing, this is subject to false positive. But
+    the goal here is to have basic smoke testing of the logic.
+    """
+    swhid = CoreSWHID.from_string("swh:1:cnt:fe95a46679d128ff167b7c55df5d02356c5a1ae1")
+    content_key = f"content/sha1_git:{hash_to_hex(swhid.object_id)}/"
+    url = f"{API_URL}/{content_key}"
+
+    replies = []
+    for __, remaining, total, reset_date in events:
+        replies.append(
+            {
+                "headers": rate_headers(remaining, total, reset_date),
+                "text": API_DATA[content_key],
+            }
+        )
+    web_api_mock.register_uri(
+        "GET",
+        url,
+        replies,
+    )
+    for prior_sleep, __, __, __ in events:
+        time.sleep(prior_sleep)
+        web_api_client.content(swhid)
+
+
+def test_get_rate_limit_basic(web_api_client, web_api_mock):
+    """Smoke test for multiple queries with rate limit header
+
+    note: This test using actual timing, so it is subject to False positive.
+    """
+    now = int(time.time())
+    _smoke_rate_limit(
+        web_api_client,
+        web_api_mock,
+        [
+            (0, 999, 1000, now + 10),
+            # sleep 0.1 second to give a change to the background thread to
+            # process the info. It might still fails on vey loaded systems
+            (0.1, 998, 1000, now + 10),
+        ],
+    )
+
+
+def test_get_rate_multi_windows(web_api_client, web_api_mock):
+    """Smoke test for queries over multiple Rate limit Windows
+
+    note: This test using actual timing, so it is subject to False positive.
+    """
+    now = int(time.time())
+    _smoke_rate_limit(
+        web_api_client,
+        web_api_mock,
+        [
+            (0, 999, 1000, now + 1),
+            # sleep 2 second to let the previous windows close
+            (2, 999, 1000, now + 10),
+        ],
+    )
+
+
+def test_get_rate_stricter_info(web_api_client, web_api_mock):
+    """Smoke test situation where the rate limiting have to reasses its delay"""
+    now = int(time.time())
+    _smoke_rate_limit(
+        web_api_client,
+        web_api_mock,
+        [
+            (0, 999, 1000, now + 1),
+            # sleep 0.1 second to give a change to the background thread to
+            # process the info. It might still fails onv ery loaded systems
+            (0.1, 100, 1000, now + 10),
+            # sleep 0.1 second to give a change to the background thread to
+            # process the info. It might still fails onv ery loaded systems
+            (0.1, 99, 1000, now + 10),
+            # Then do multiple close request that should get rate limited
+            (0, 98, 1000, now + 10),
+            (0, 97, 1000, now + 10),
+        ],
+    )
+
+
+def test_get_rate_free_stuck_request(web_api_client, web_api_mock):
+    """Smoke test situation where the rate limiting have to reasses its"""
+    now = int(time.time())
+    _smoke_rate_limit(
+        web_api_client,
+        web_api_mock,
+        [
+            (0, 2, 1000, now + 1),
+            (0.1, 1, 1000, now + 1),
+            (0.1, 0, 1000, now + 1),
+            # this request should get stuck until the end of the windows
+            (0.1, 9999, 1000, now + 20),
+            # end everything should be fine afterward.
+            (0.1, 9998, 1000, now + 20),
+        ],
+    )
+
+
+def test_get_rate_out_or_order_information(web_api_client, web_api_mock):
+    """Smoke test situation where the rate limit info arrive out of order
+
+    This simulate multiple thread sending information without specific ordering.
+    """
+    start = time.time()
+    # Give it 10 remaining request per second in the next 1200 second
+    # With 10% of the budget left
+    #
+    # This use large number to reduce the impact of other delay on the processing
+    total_time = 1200
+    remaining_time = 1200 // 10
+    rate_per_sec = 10
+    total = total_time * rate_per_sec
+    remaining = rate_per_sec * remaining_time
+    window_end = int(start) + remaining_time
+    _smoke_rate_limit(
+        web_api_client,
+        web_api_mock,
+        [
+            (0, remaining, total, window_end),
+            # remaining doing request
+            (0.1, remaining + 1, total, window_end),
+            (0, remaining + 8, total, window_end),
+            (0, remaining + 10, total, window_end),
+            (0, remaining + 7, total, window_end),
+            (0, remaining + 3, total, window_end),
+            (0, remaining + 6, total, window_end),
+            (0, remaining + 4, total, window_end),
+            (0, remaining + 5, total, window_end),
+            (0, remaining + 2, total, window_end),
+            (0, remaining + 9, total, window_end),
+            # Give an answer with a smaller budget, but given than some time
+            # should have passed, it should not alter the pace.
+            (0, remaining - 1, total, window_end),
+            (0, remaining + 11, total, window_end),
+            (0, remaining + 12, total, window_end),
+            (0, remaining + 13, total, window_end),
+            (0, remaining + 14, total, window_end),
+            (0, remaining + 15, total, window_end),
+            (0, remaining + 16, total, window_end),
+            (0, remaining + 17, total, window_end),
+            (0, remaining + 18, total, window_end),
+            (0, remaining + 19, total, window_end),
+        ],
+    )
+    # Lets be wild and actually test we rate limited here.
+    #
+    # Request should have a 0.1 second delay in average, so it should have
+    # taken 2 second to run these 20 requests. However the time frame is quite
+    #
+    # small, and various overhead means the rate limiter needs some time to
+    # pick up the information and start limiting request, making the timing of
+    # the rate limit a bit off.
+    #
+    # So we assert on a longer value to take this in account.
+    end = time.time()
+    duration = end - start
+    assert duration >= 1.5
+    assert 0 < web_api_client.rate_limit_delay
 
 
 def test_get_directory(web_api_client, web_api_mock):

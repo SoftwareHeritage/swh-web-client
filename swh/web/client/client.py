@@ -27,15 +27,18 @@ conversions and pagination.
    next(cli.snapshot('swh:1:snp:cabcc7d7bf639bbe1cc3b41989e1806618dd5764'))
 
 """
-
 from datetime import datetime
+import heapq
 import itertools
 import logging
+import queue
 import threading
 import time
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 from urllib.parse import urlparse
+import weakref
 
+import attr
 import dateutil.parser
 import requests
 import requests.status_codes
@@ -56,6 +59,365 @@ RELEASE = "release"
 SNAPSHOT = "snapshot"
 ORIGIN_VISIT = "origin_visit"
 ORIGIN = "origin"
+
+
+# how many nanoseconds is one second:
+#
+# We use nanoseconds for the time arythmetic because it does not suffer from
+# the same issue as floats with precision and drifting.
+_1_SECOND = 1_000_000_000
+
+
+class _RateLimitInfo:
+    """Object that holds rate limit information and can compute delay
+
+    The rate limiting information always come from an http request.
+
+    It holds the following attributes:
+
+    start:         date of the request start (seconds since epoch)
+    end:           date of the request end (seconds since epoch)
+    limit:         maximum number of requests in the rate limit window
+    remaining:     number of remaining requestss
+    reset_date:    date of rate limit window reset (second since epoch)
+
+    reset_date_ns: date of rate limit window reset (nanoseconds since epoch)
+    wait_ns:       ideal number of nanoseconds to wait between each request.
+
+    >>> reset = 150
+    >>> ### test replacement logic
+    >>> # some old information to replace
+    >>> old = _RateLimitInfo(42, 44, 1000, 800, reset)
+    >>> # some information with the same date but lower budget
+    >>> new = _RateLimitInfo(42, 44, 1000, 700, reset)
+    >>> # some information with a later window
+    >>> newer = _RateLimitInfo(42, 44, 1000, 100, reset * 2)
+    >>> # the old one is replaced by a lower budget
+    >>> assert new.replacing(old)
+    >>> # the later window replace the older window
+    >>> assert newer.replacing(old)
+    >>> assert newer.replacing(new)
+    >>> ### test delay logic
+    >>> # with a full budget
+    >>> full = _RateLimitInfo(42, 50, 1000, 1000, reset)
+    >>> assert (0.0999 * _1_SECOND) < full.wait_ns < (0.1001 * _1_SECOND)
+    >>> # with a half full budget
+    >>> half = _RateLimitInfo(42, 50, 1000, 500, reset)
+    >>> assert (0.1999 * _1_SECOND) < half.wait_ns < (0.2001 * _1_SECOND)
+    >>> # with an empty budget
+    >>> empty = _RateLimitInfo(42, 50, 1000, 0, reset)
+    >>> assert (99.001 * _1_SECOND) < empty.wait_ns < (100.001 * _1_SECOND)
+    """
+
+    def __init__(
+        self,
+        start: float,
+        end: float,
+        limit: int,
+        remaining: int,
+        reset: float,
+    ):
+        self.start = start
+        self.end = end
+        self.limit = limit
+        self.remaining = remaining
+        self.reset_date = reset
+
+    def __repr__(self) -> str:
+        r = "<RateLimitInfo start=%s, end=%s, budget=%d/%d, reset_date=%d>"
+        r %= (self.start, self.end, self.remaining, self.limit, self.reset_date)
+        return r
+
+    @property
+    def reset_date_ns(self) -> int:
+        reset_date_ns = int(self.reset_date * _1_SECOND)
+        # cache the value for future call
+        self.__dict__["reset_date_ns"] = reset_date_ns
+        return reset_date_ns
+
+    @property
+    def wait_ns(self) -> int:
+        duration = (self.reset_date - self.end) * _1_SECOND
+        limited = self.remaining
+        if limited <= 0:
+            wait_ns = duration
+        else:
+            wait_ns = duration // limited
+        wait_ns = int(wait_ns)
+        wait_ns = max(wait_ns, 1)  # make sure wait_ns > 0
+        # cache the value for future call
+        self.__dict__["wait_ns"] = wait_ns
+        return wait_ns
+
+    def replacing(self, other: "_RateLimitInfo") -> bool:
+        """return True if `self` as "better" information that "other"o
+
+        The two criteria to decide something is better are:
+        - `self` is about a later rate limiting windows than `other`
+        - `self` is about the same window but requires a significantly longer
+                 wait time.
+        """
+        if other.reset_date != self.reset_date:
+            # the one with a later reset date is likely more up to date.
+            return other.reset_date < self.reset_date
+
+        # replace is significantly stricter
+        return other.wait_ns < (self.wait_ns / 0.9)
+
+
+@attr.s(slots=True, order=True)
+class _RateLimitEvent:
+    """Represent a date at which a rate limiting action is needed for a client
+
+    This is used by _RateLimitEnforcer to schedule actions.
+    """
+
+    # when is this event due, (from time.monotonic_ns())
+    date = attr.ib(type=int)
+    # the rate limit this try to enforce
+    rate_limit = attr.ib(type=_RateLimitInfo)
+    # the client it applies too
+    client_ref = attr.ib(type=weakref.ref)
+
+
+_ALL_CLIENT_TYPE = weakref.WeakKeyDictionary["WebAPIClient", _RateLimitInfo]
+
+
+# a pair of Semaphore: `(available, waiting)`
+#
+# `available`:
+#   hold one token for each request we can currently make while respecting the
+#   rate limit. It is filled in the background by the _RateLimitEnforcer`
+#   thread.
+# `waiting`:
+#   hold one token for each request currently trying to acquire a "available"
+#   token. These tokens are added and removed by the code doing the request.
+#   (and ultimately by the `_RateLimitEnforcer` thread through
+#   WebAPIClient._clear_rate_limit_tokens)
+_RateLimitTokens = Tuple[threading.Semaphore, threading.Semaphore]
+
+
+class _RateLimitEnforcer:
+    """process rate limiting information into rate limiting token
+
+    This object is meant to be run forever in a daemon thread. That daemon
+    thread is started by the `_RateLimitEnforcer._get_limiter` class method when
+    needed.
+
+    The WebAPIClient send the rate limiting information they receive from the
+    server into the `feed` Queue they get from that same `_get_limiter` class
+    method, using the `new_info` class method.
+
+    This function process these rate limiting information and slowly issue
+    "available request" token to a `threading.Semaphore` instance at the
+    appropriate rate.  These "available request" token are consumed by request,
+    practically reducing the rate of requests.
+    """
+
+    _queue: Optional[queue.Queue] = None
+    _limiter: Optional["_RateLimitEnforcer"] = None
+    _limiter_thread = None  # not really needed, but lets keep it around.
+    _limiter_lock = threading.Lock()
+
+    @classmethod
+    def new_info(cls, client: "WebAPIClient", info: _RateLimitInfo) -> None:
+        """pass new _RateLimitInfo from client to the _RateLimitEnforcer"""
+        feed = cls._get_limiter()
+        feed.put((client, info))
+
+    @classmethod
+    def current_rate_limit_delay(cls, client: "WebAPIClient") -> float:
+        """return the current rate limit delay for this Client (in second)"""
+        limiter = cls._limiter
+        if limiter is None:
+            return 0.0
+        rate_limit = limiter._all_clients.get(client)
+        if rate_limit is None:
+            return 0.0
+        wait_ns = rate_limit.wait_ns
+        if wait_ns == 1:
+            return 0.0
+        return max(rate_limit.wait_ns / _1_SECOND, 0.0)
+
+    @classmethod
+    def _get_limiter(cls) -> queue.Queue:
+        """return the current queue that gather rate limit information
+
+        That function will initialize that Queue and the associated daemon thread
+        the first time it is called.
+        """
+        if cls._queue is None:
+            with cls._limiter_lock:
+                if cls._queue is None:
+                    cls._queue = queue.Queue()
+                    cls._limiter = cls(cls._queue)
+                    cls._limiter_thread = threading.Thread(
+                        target=cls._limiter._run_forever,
+                        name=f"{__name__}._RateLimitEnforcer.run",
+                        daemon=True,
+                    )
+                    cls._limiter_thread.start()
+        return cls._queue
+
+    def __init__(self, feed: queue.Queue):
+        self._feed: queue.Queue = feed
+        # a heap of _RateLimitInfo
+        #
+        # contains a date-ordered list of the futur _RateLimitInfo to proceed.
+        #
+        self._events: list[_RateLimitEvent] = []
+        # a mapping for most up-to-date information for each WebAPIClient
+        self._all_clients: _ALL_CLIENT_TYPE = weakref.WeakKeyDictionary()
+
+    def _run_forever(self):
+        """main entry points loop forever.
+
+        Proceed new incoming information from Client and managing the
+        _RateLimitTokens of the associated client.
+
+        This must be run in a daemonized thread.
+        """
+        while True:
+            self._consume_ready_events()
+            self._process_infos()
+
+    def _add_event(self, event: _RateLimitEvent) -> None:
+        """schedule a new event"""
+        heapq.heappush(self._events, event)
+
+    def _consume_ready_events(self) -> None:
+        """Consume Rate Limit event that are ready
+
+        This find all events whose time is up, and process them.
+        """
+
+        current = time.monotonic_ns()
+        for client, this_event in self._next_events(current):
+            client._add_one_rate_limit_token()
+
+            rate_limit = this_event.rate_limit
+
+            # schedule the next event
+            if rate_limit.reset_date_ns >= current:
+                this_event.date += rate_limit.wait_ns
+                self._add_event(this_event)
+            else:
+                # The windows closed. we should not reschedule an event.
+                # The first request in the new window will rearm the logic.
+                self._all_clients.pop(client, None)
+                client._clear_rate_limit_tokens()
+
+    def _next_events(
+        self,
+        current: int,
+    ) -> Iterator[Tuple["WebAPIClient", _RateLimitEvent]]:
+        """iterate over the (client, event) pair that is both ready and valid
+
+        Readiness is computed compared to "current".
+
+        return None if no such events exists.
+        """
+        while self._events and self._events[0].date <= current:
+            event = heapq.heappop(self._events)
+
+            # determine if that event is still valid
+            client = event.client_ref()
+            if client is None:
+                # that client is no longer active
+                continue
+            latest_rate_limit = self._all_clients.get(client)
+            if latest_rate_limit is None:
+                # that client is no longer active (narrow race)
+                continue
+            if latest_rate_limit is not event.rate_limit:
+                # that event was superseded by a more recent one, lets ignore it
+                continue
+            yield (client, event)
+
+    def _process_infos(self):
+        """process incoming _RateLimitInfo
+
+        This process all available _RateLimitInfo, then wait until the next
+        _RateLimitEvent is due for newer _RateLimitInfo.
+
+        So if no new _RateLimitInfo come, this is equivalent to a sleep until
+        the next _RateLimitEvent.
+        """
+        for current, client, rate_limit in self._next_infos():
+            old = self._all_clients.get(client)
+            if old is None or rate_limit.replacing(old):
+                # We lets consider the time between the generation of this
+                # limit server side and its processing negligible
+                current = time.monotonic_ns()
+                event = _RateLimitEvent(
+                    date=current + rate_limit.wait_ns,
+                    client_ref=weakref.ref(client),
+                    rate_limit=rate_limit,
+                )
+                self._all_clients[client] = rate_limit
+                if old is None or old.reset_date != rate_limit.reset_date:
+                    client._refresh_rate_limit_tokens()
+                self._add_event(event)
+
+    def _next_infos(
+        self,
+    ) -> Iterator[Tuple[int, "WebAPIClient", _RateLimitInfo]]:
+        """iterate over the available (client, _RateLimitInfo) pairs
+
+        If no new information are currently available, this wait until then
+        wait until the next _RateLimitEvent is due. If no new information
+        arrive during that time. The iteration is over.
+        """
+        while True:
+            current = time.monotonic_ns()
+            wait_ns = _1_SECOND  # default wait if there is nothing to do
+            if self._events:
+                wait_ns = self._events[0].date - current
+            try:
+                # passing timeout 0, or negative timeout will create issue, so
+                # we set the minimum to one nano second.
+                wait_ns = max(wait_ns, 1)
+                wait = wait_ns / _1_SECOND
+                client, rate_limit = self._feed.get(timeout=wait)
+            except queue.Empty:
+                # No external information received.
+                #
+                # However we reached the next items in `self._events` and need
+                # to process them.
+                break
+            else:
+                yield (current, client, rate_limit)
+
+
+def _free_existing_request(tokens: _RateLimitTokens) -> None:
+    r"""Internal Rate Limiting Method. Do not call directly.
+
+    Unlock all waiting requests for a _RateLimitTokens. This is used when
+    the rate limit windows for which the tokens applies concludes.
+
+    The _RateLimitTokens consist of two Semaphores, "available" and
+    "waiting".
+
+    When this method no other code should be able to get access to that
+    token.  Some client might still hold a reference to it, but the
+    `_RateLimitEnforcer` will no longer add "available" tokens to it.
+
+    The "waiting" semaphore contains one token for each request currently
+    waiting for an available token. The goal is to unlock all of them. So
+    add one "available" token for each "waiting-token" we can find. We
+    acquire them before issuing the "available-token" otherwise the Thread
+    doing request will concurrently acquire their "waiting-token" too,
+    making our count wrong.
+
+    /!\ This is an internal method related to rate-limiting management.  /!\
+    /!\ It should only be called by the `_RateLimitEnforcer` function. /!\
+    """
+    available, waiting = tokens
+    need_unlock = 0
+    while waiting.acquire(blocking=False):
+        need_unlock += 1
+    for r in range(need_unlock):
+        available.release()
 
 
 def _get_object_id_hex(swhidish: SWHIDish) -> str:
@@ -160,142 +522,6 @@ def _parse_limit_header(response) -> Tuple[Optional[int], Optional[int], Optiona
     return (limit, remaining, reset)
 
 
-class _RateLimitInfo:
-    """Object that hold rate limit information and can compute delay
-
-    >>> reset = 150
-    >>> ### test replacement logic
-    >>> # some old information to replace
-    >>> old = _RateLimitInfo(42, 44, 1000, 800, reset)
-    >>> # some information with the same date but lower budget
-    >>> new = _RateLimitInfo(42, 44, 1000, 700, reset)
-    >>> # some information with a later window
-    >>> newer = _RateLimitInfo(42, 44, 1000, 100, reset * 2)
-    >>> # the old one is replaced by a lower budget
-    >>> assert new.replacing(old)
-    >>> # the later window replace the older window
-    >>> assert newer.replacing(old)
-    >>> assert newer.replacing(new)
-    >>> ### test delay logic
-    >>> # if the budget is fully available we expect no delay
-    >>> full = _RateLimitInfo(42, 42, 1000, 1000, reset)
-    >>> # whatever the remaining windows is
-    >>> assert full.pratical_delay(50) == 0
-    >>> assert full.pratical_delay(100) == 0
-    >>> # if the budget is half consumed we expect a delay
-    >>> half = _RateLimitInfo(42, 42, 1000, 500, reset)
-    >>> delay_100w = half.pratical_delay(50)
-    >>> assert 0 < delay_100w < half.MAX_SLOW_FACTOR
-    >>> # smaller windows means smaller delay
-    >>> delay_50w = half.pratical_delay(100)
-    >>> assert 0 < delay_50w < half.MAX_SLOW_FACTOR
-    >>> assert (delay_100w / 2.1) < delay_50w < (delay_100w / 1.9)
-    """
-
-    # see usage code for documentation
-    SLOW_DOWN_RATIO = 0.9
-    MIN_SLOW_FACTOR = 0.1
-    MAX_SLOW_FACTOR = 10
-    SLOW_POWER = 4
-
-    def __init__(self, start, end, limit, remaining, reset):
-        self.start = start
-        self.end = end
-        self.limit = limit
-        self.remaining = remaining
-        self.reset_date = reset
-
-        self.remaining_ratio = self.remaining / self.limit
-
-    def __repr__(self):
-        r = "<RateLimitInfo start=%s, end=%s, budget=%d/%d, reset_date=%d>"
-        r %= (self.start, self.end, self.remaining, self.limit, self.reset_date)
-        return r
-
-    def replacing(self, other):
-        if other.reset_date != self.reset_date:
-            # the one with a later reset date is likely more up to date.
-            return other.reset_date < self.reset_date
-
-        # new info are strictly newer than existing one
-        if other.end < self.start:
-            return True
-
-        # new info are strictly older than existing one
-        if other.end < self.start:
-            return False
-
-        # information overlap, keep the stricter one
-        return self.remaining_ratio < other.remaining_ratio
-
-    def theoretical_delay(self, current_date):
-        """theoretical necessary delay between request until the end of the windows
-
-        If request are issued at this interval, they will match the request
-        rate limit from the server.
-
-        Value is return in second"""
-        timeframe = self.reset_date - current_date
-
-        if timeframe <= 0:
-            # the reset date is passed, no rate limiting to apply
-            return 0
-
-        return timeframe / self.remaining
-
-    def pratical_delay(self, current_date):
-        """return current appropriate request delay in second
-
-        how much we should wait before each issuing a new request if we want
-        to avoid depleting the budget early
-        That logic is not very elaborate for now and has various limitation. For example:
-        - the delay should be dynamic and take in account the age the information,
-        - we don't account for potential multiple thread
-        """
-        if self.remaining <= 0:
-            # no more credit, we can just wait.
-            #
-            # We wait a bit more since reaching zero budget is a failure in
-            # itself.
-            delay = self.reset_date - current_date
-            delay *= 1.1
-            return delay
-
-        delay = self.theoretical_delay(current_date)
-        # We do not introduce delay for the initial part of the budget.
-        #
-        # We do not want to slow down a small burst of request.
-        # that ratio is controlled by SLOW_DOWN_RATIO.
-        if delay <= 0 or self.remaining_ratio > self.SLOW_DOWN_RATIO:
-            return 0
-
-        # The remaining budget start to be limited, we are going to delay
-        # request to match a rate that allow us to keep issuing requests until
-        # the windows is reset
-        #
-        # The lower the budget, the longer we delay request, waiting more than
-        # what is strictly necessary. This is intended to help cope with other
-        # Client chipping at the same budget.
-        #
-        # when SLOW_DOWN_RATIO is reached, such factor will be
-        # MIN_SLOW_FACTOR at the start and MAX_SLOW_FACTOR at the end. That
-        # factor will evolve using a xʸ curve. Where y is SLOW_POWER.
-        assert 0 <= self.SLOW_DOWN_RATIO <= 1
-        assert self.MIN_SLOW_FACTOR < self.MAX_SLOW_FACTOR
-        assert 0 < self.SLOW_POWER
-        start = self.MIN_SLOW_FACTOR ** (1 / self.SLOW_POWER)
-        end = self.MAX_SLOW_FACTOR ** (1 / self.SLOW_POWER)
-        used_up = 1 - (self.remaining_ratio / self.SLOW_DOWN_RATIO)
-        x = start + ((end - start) * used_up)
-        factor = x**self.SLOW_POWER
-
-        if factor <= 0:
-            # let us avoid negative delay in case MIN_SLOW_FACTOR allows for it.
-            return 0
-
-        return delay * factor
-
-
 # The maximum amount of SWHID that one can request in a single `known` request
 KNOWN_QUERY_LIMIT = 1000
 
@@ -322,6 +548,7 @@ class WebAPIClient:
         bearer_token: Optional[str] = DEFAULT_CONFIG["bearer_token"],
         request_retry=MAX_RETRY,
         retry_status=DEFAULT_RETRY_REASONS,
+        use_rate_limit: bool = True,
     ):
         """Create a client for the Software Heritage Web API
 
@@ -330,6 +557,31 @@ class WebAPIClient:
         Args:
             api_url: base URL for API calls
             bearer_token: optional bearer token to do authenticated API calls
+            use_rate_limit: enable or disable request pacing according to
+                            server rate limit information.
+
+        With rate limiting enabled (the default), the client will adjust its
+        request rate if the server provides Rate limiting headers.
+
+        The rate limiting will pace out the available requests evenly in the
+        rate limit windows.
+
+        For example, if there is 600 request remaining for a windows that reset
+        in 5 minutes (300 second), a request will be issuable every 0.5
+        seconds.
+
+        This pace will be enforced overall, allowing for period of inactivity
+        between faster spike.
+
+        For example (using the same number as above):
+        - A client that tries to issue requests continuously will have to wait
+          0.5 second between each requests.
+        - A client that did not issue requests for 1 minutes (60 seconds) will
+          be able to issue 120 requests right away (60 / 0.5) before having to
+          wait 0.5 second between requests.
+
+        The above is true regardless of the number of threads using
+        the same WebAPIClient.
         """
         api_url = api_url.rstrip("/")
         u = urlparse(api_url)
@@ -350,9 +602,96 @@ class WebAPIClient:
         # assume we will do multiple call and keep the connection alive
         self._session = requests.Session()
 
-        self._rate_limit_lock = threading.Lock()
-        self._latest_request_date = 0
-        self._latest_rate_limit_info = None
+        self._use_rate_limit: bool = use_rate_limit
+        self._rate_tokens: Optional[_RateLimitTokens] = None
+
+    @property
+    def rate_limit_delay(self):
+        """current rate limit delay in second"""
+        return _RateLimitEnforcer.current_rate_limit_delay(self)
+
+    def _add_one_rate_limit_token(self) -> None:
+        r"""Internal Rate Limiting Method. Do not call directly.
+
+        This method is called when one extra request can be issued.
+
+        /!\ This is an internal method related to rate-limiting management.  /!\
+        /!\ It should only be called by the `_RateLimitEnforcer` function.   /!\
+        """
+        assert self._rate_tokens is not None
+        self._rate_tokens[0].release()
+
+    def _clear_rate_limit_tokens(self) -> None:
+        r"""Internal Rate Limiting Method. Do not call directly.
+
+        This is called used when a rate limit window conclude as we reached its
+        end date.
+
+        At that point we disable rate limiting and free any waiting requests.
+
+        In some case, information about a new windows will be received before
+        we detect this windows expiration and `_refresh_rate_limit_tokens` will
+        be called instead.
+
+        /!\ This is an internal method related to rate-limiting management.  /!\
+        /!\ It should only be called by the `_RateLimitEnforcer` function.   /!\
+        """
+        tokens = self._rate_tokens
+        self._rate_tokens = None
+        if tokens is not None:
+            _free_existing_request(tokens)
+
+    def _refresh_rate_limit_tokens(self) -> None:
+        r"""Internal Rate Limiting Method. Do not call directly.
+
+        Setup a new Rate limit Windows by resetting the rate limit Semaphores.
+        This is used when a RateLimitInfo for a newer windows is received.
+
+        When a rate limit windows conclude, there is two possibles situations:
+
+        1) There is no waiting request: the number of available token in ≥ 0.
+        2) There is waiting request: the number of available token is 0.
+
+        In the case (1) We need to discard this available tokens. A new Rate
+        limiting window will start, and it need a blank slate. The request we
+        did not do early are irrelevant for that new windows.
+
+        For example, let says rate limit a window s 1 minute long with 100
+        request. If the client issued only one request in each of the past two
+        minutes, it used only 2 request out of a 200 total budget. However
+        server side the budget reset for each windows, so at the start of the
+        new windows, the client can only issue 100 request over the next
+        minute. If we preserved token from only window to the next, at the
+        point the client would have 198 available token already (+ 100 to
+        accumulate over the next minute) a number totally disconnected from the
+        server state.
+
+        So, we have to reset the Semaphore token for each window.
+
+
+        However, some request might still be waiting for token on the Semaphore
+        of the old Windows. If we do nothing they would be stuck forever. We
+        could do some fancy logic to transfer these waiting requests to the new
+        semaphore, but is is significantly simpler to just unlock them. They'll
+        consume some of the budget of the new windows, and the rate limiting
+        will adjust to the remaining budget.
+
+        If the number of waiting request is exceed (or even it close to) the
+        total budget of the next windows, this means request are being made at
+        an unreasonable parallelism level and there will be troubles anyways.
+
+        /!\ This is an internal method related to rate-limiting management.  /!\
+        /!\ It should only be called by the `_RateLimitEnforcer` function.   /!\
+        """
+        if not self._use_rate_limit:
+            return
+        tokens = self._rate_tokens
+        self._rate_tokens = (
+            threading.Semaphore(),  # available request
+            threading.Semaphore(),  # waiting request
+        )
+        if tokens is not None:
+            _free_existing_request(tokens)
 
     def _call(
         self, query: str, http_method: str = "get", **req_args
@@ -395,7 +734,10 @@ class WebAPIClient:
                 r.raise_for_status()
                 break
             if logger.isEnabledFor(logging.DEBUG):
-                msg = f"HTTP RETRY {http_method} {url} delay={delay} remaining-tries={retry}"
+                msg = (
+                    f"HTTP RETRY {http_method} {url}"
+                    f" delay={delay:.6f} remaining-tries={retry}"
+                )
                 logger.debug(msg)
             time.sleep(delay)
             delay *= 2
@@ -405,32 +747,58 @@ class WebAPIClient:
         """call on request and update rate limit info if available"""
         assert http_method in ("get", "post", "head"), http_method
         is_dbg = logger.isEnabledFor(logging.DEBUG)
-        rate_limit = self._latest_rate_limit_info
-        if rate_limit is not None:
-            delay = rate_limit.pratical_delay(time.time())
-            if delay > 0:
-                time.sleep(delay)
+        delay = 0
+        pre_grab = time.monotonic()
+        tokens = self._rate_tokens
+        if tokens is not None:
+            available, waiting = tokens
+            # signal we wait for a token, to ensure a refresh of the rate_token
+            # does not leave us hanging forever.
+            #
+            # See `_free_existing_request(…)` for details.
+            waiting.release()
+            try:
+                # If the `rate_token` tuple changed since we read it, this means
+                # the tokens Semaphore where refreshed, and it might have
+                # happened before our "waiting-token" was registered. Therefore
+                # we cannot 100% rely on the "waiting-token" to ensure we will
+                # eventually get a "available-request-token" available for us.
+                #
+                # We ignore the rate limiting logic in that case. The race is
+                # narrow enough that it is unlikely to create issue in
+                # practice.
+                #
+                # If the `rate_token` tuple did not change, we are certain the
+                # "waiting-token" will be taken in account in the case a
+                # refresh happends while wait for an "available-request-token".
+                if tokens is self._rate_tokens:
+                    # respect the rate limit enforced globally
+                    #
+                    # the `available` Semaphore is filled by the code in
+                    # _RateLimitEnforcer
+                    available.acquire()
+            finally:
+                # signal we no longer need to be saved from infinite hang
+                #
+                # We do a non-blocking acquire, because if the _RateLimitTokens
+                # is being discarded, the `_RateLimitEnforcer` might have
+                # acquired *our* "waiting-token" in the process of unlocking
+                # this thread.
+                waiting.acquire(blocking=False)
+            delay = time.monotonic() - pre_grab
         if is_dbg:
             dbg_msg = f"HTTP CALL {http_method} {url}"
-            if rate_limit is not None:
-                rate_dbg = f" latest-rate-limit-info=%r delay={delay}"
-                rate_dbg %= rate_limit
-                dbg_msg += rate_dbg
+            if delay:
+                dbg_msg += f" delay={delay:.6f}"
             logger.debug(dbg_msg)
-        start = time.monotonic()
-        with self._rate_limit_lock:
-            if start > self._latest_request_date:
-                self._latest_request_date = start
+        start = time.time()
         if http_method == "get":
             r = self._session.get(url, **req_args, headers=headers)
         elif http_method == "post":
             r = self._session.post(url, **req_args, headers=headers)
         elif http_method == "head":
             r = self._session.head(url, **req_args, headers=headers)
-        end = time.monotonic()
-        with self._rate_limit_lock:
-            if end > self._latest_request_date:
-                self._latest_request_date = end
+        end = time.time()
 
         if is_dbg:
             dbg_msg = f"HTTP REPLY {r.status_code} {http_method} {url}"
@@ -440,11 +808,7 @@ class WebAPIClient:
             new = _RateLimitInfo(start, end, *rate_limit_header)
             if is_dbg:
                 dbg_msg += " rate-limit-info=%r" % new
-            with self._rate_limit_lock:
-                existing = self._latest_rate_limit_info
-                if existing is None or new.replacing(existing):
-                    # no pre-existing data
-                    self._latest_rate_limit_info = new
+            _RateLimitEnforcer.new_info(self, new)
         if is_dbg:
             logger.debug(dbg_msg)
         return r
