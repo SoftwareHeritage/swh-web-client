@@ -83,6 +83,8 @@ class _RateLimitInfo:
 
     reset_date_ns: date of rate limit window reset (nanoseconds since epoch)
     wait_ns:       ideal number of nanoseconds to wait between each request.
+    free_token:    the number of token available initially
+                   (see the `setup_free_token` method for details)
 
     >>> reset = 150
     >>> ### test replacement logic
@@ -109,6 +111,11 @@ class _RateLimitInfo:
     >>> assert (99.001 * _1_SECOND) < empty.wait_ns < (100.001 * _1_SECOND)
     """
 
+    # amount of the available budget that we should give for free
+    INITIAL_FREE_TOKEN_RATIO = 0.1
+    # under which budget should we stop giving away free tokens
+    FREE_TOKENS_CUTOFF_RATIO = 0.25
+
     def __init__(
         self,
         start: float,
@@ -122,6 +129,8 @@ class _RateLimitInfo:
         self.limit = limit
         self.remaining = remaining
         self.reset_date = reset
+
+        self.free_token = 0
 
     def __repr__(self) -> str:
         r = "<RateLimitInfo start=%s, end=%s, budget=%d/%d, reset_date=%d>"
@@ -139,6 +148,7 @@ class _RateLimitInfo:
     def wait_ns(self) -> int:
         duration = (self.reset_date - self.end) * _1_SECOND
         limited = self.remaining
+        limited -= self.free_token
         if limited <= 0:
             wait_ns = duration
         else:
@@ -163,6 +173,50 @@ class _RateLimitInfo:
 
         # replace is significantly stricter
         return other.wait_ns < (self.wait_ns / 0.9)
+
+    def setup_free_token(self) -> None:
+        """setup the count of free token, adjusting the wait time
+
+        This is a simple way to provide "progressive" rate limiting, that allow
+        fast-paced initial request while slowing larger batch of request.
+
+        This is achieved by initially granting a fraction of the initial budget
+        without delay. The remaining budget is then paced on the remaining
+        time.
+
+        Example:
+
+            We start with:
+            - remaining request 100
+            - remaining window: 60 seconds
+            - free budget: 10%
+
+            So `setup_free_token` results in:
+            - 10 token available,
+            - 90 requests paced over 60s, i.e. one request every ⅔ second.
+
+            This give use a basic "progressive" rate in practice:
+            - issuing   1 request  requires  0.00 seconds (0.00s / request)
+            - issuing  10 requests requires  0.00 seconds (0.00s / request)
+            - issuing  11 requests requires  0.66 seconds (0.06s / request)
+            - issuing  15 requests requires  3.33 seconds (0.22s / request)
+            - issuing  20 requests requires  6.66 seconds (0.33s / request)
+            - issuing  50 requests requires 26.66 seconds (0.53s / request)
+            - issuing 100 requests requires 60.00 seconds (0.60s / request)
+
+        The progressive effect is still "less" good that having a fancy curve
+        for the token generation, this is currently "good enough" for a
+        fraction of the complexity.
+        """
+        if self.remaining / self.limit <= self.FREE_TOKENS_CUTOFF_RATIO:
+            # we don't grant free token if the budget is running low as this is
+            # the sign that many request are being issued in general.
+            self.free_token = 0
+        else:
+            free = self.remaining * self.INITIAL_FREE_TOKEN_RATIO
+            self.free_token = int(free)
+        # clear `wait_ns` cache
+        self.__dict__.pop("wait_ns", None)
 
 
 @attr.s(slots=True, order=True)
@@ -355,8 +409,17 @@ class _RateLimitEnforcer:
                     rate_limit=rate_limit,
                 )
                 self._all_clients[client] = rate_limit
+                if old is None:
+                    # If this is the initial requests, we give the user a small
+                    # free budget
+                    #
+                    # We do not do this when renewing the windows because we
+                    # assume that if some rate limit information was still in
+                    # place from the previous windows, the connection is
+                    # somewhat heavily used.
+                    rate_limit.setup_free_token()
                 if old is None or old.reset_date != rate_limit.reset_date:
-                    client._refresh_rate_limit_tokens()
+                    client._refresh_rate_limit_tokens(rate_limit.free_token)
                 self._add_event(event)
 
     def _next_infos(
@@ -564,7 +627,8 @@ class WebAPIClient:
         request rate if the server provides Rate limiting headers.
 
         The rate limiting will pace out the available requests evenly in the
-        rate limit windows.
+        rate limit windows. (except for a small initial budget as explained
+        below)
 
         For example, if there is 600 request remaining for a windows that reset
         in 5 minutes (300 second), a request will be issuable every 0.5
@@ -574,14 +638,23 @@ class WebAPIClient:
         between faster spike.
 
         For example (using the same number as above):
+
         - A client that tries to issue requests continuously will have to wait
           0.5 second between each requests.
+
         - A client that did not issue requests for 1 minutes (60 seconds) will
           be able to issue 120 requests right away (60 / 0.5) before having to
           wait 0.5 second between requests.
 
-        The above is true regardless of the number of threads using
-        the same WebAPIClient.
+        The above is true regardless of the number of threads using the same
+        WebAPIClient.
+
+        In practice, to avoid slowing down small application doing few
+        requests, 10% of the available budget is available immediately, the other
+        90% of the requests being spread out over the rate limit window.o
+
+        This initial "immediate" budget is only granted if at least 25% of the
+        total request budget is available.
         """
         api_url = api_url.rstrip("/")
         u = urlparse(api_url)
@@ -641,7 +714,7 @@ class WebAPIClient:
         if tokens is not None:
             _free_existing_request(tokens)
 
-    def _refresh_rate_limit_tokens(self) -> None:
+    def _refresh_rate_limit_tokens(self, free_token=0) -> None:
         r"""Internal Rate Limiting Method. Do not call directly.
 
         Setup a new Rate limit Windows by resetting the rate limit Semaphores.
@@ -690,6 +763,8 @@ class WebAPIClient:
             threading.Semaphore(),  # available request
             threading.Semaphore(),  # waiting request
         )
+        for i in range(free_token):
+            self._rate_tokens[0].release()
         if tokens is not None:
             _free_existing_request(tokens)
 
