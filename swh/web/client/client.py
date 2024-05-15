@@ -27,14 +27,25 @@ conversions and pagination.
    next(cli.snapshot('swh:1:snp:cabcc7d7bf639bbe1cc3b41989e1806618dd5764'))
 
 """
+import concurrent.futures
 from datetime import datetime
 import heapq
-import itertools
 import logging
 import queue
 import threading
 import time
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 from urllib.parse import urlparse
 import weakref
 
@@ -605,6 +616,8 @@ DEFAULT_RETRY_REASONS = {
 class WebAPIClient:
     """Client for the Software Heritage archive Web API, see :swh_web:`api/`"""
 
+    DEFAULT_AUTOMATIC_CONCURENCY = 20
+
     def __init__(
         self,
         api_url: str = DEFAULT_CONFIG["api_url"],
@@ -612,6 +625,8 @@ class WebAPIClient:
         request_retry=MAX_RETRY,
         retry_status=DEFAULT_RETRY_REASONS,
         use_rate_limit: bool = True,
+        automatic_concurrent_queries: bool = False,
+        max_automatic_concurrency: Optional[int] = None,
     ):
         """Create a client for the Software Heritage Web API
 
@@ -622,6 +637,10 @@ class WebAPIClient:
             bearer_token: optional bearer token to do authenticated API calls
             use_rate_limit: enable or disable request pacing according to
                             server rate limit information.
+            automatic_concurrent_queries: if :const:`True`, some large requests that
+                need to be chunked might automatically be issued in parallel
+            max_automatic_concurrency: maximum number of concurrent requests
+                when ``automatic_concurrent_queries`` is set
 
         With rate limiting enabled (the default), the client will adjust its
         request rate if the server provides Rate limiting headers.
@@ -677,6 +696,13 @@ class WebAPIClient:
 
         self._use_rate_limit: bool = use_rate_limit
         self._rate_tokens: Optional[_RateLimitTokens] = None
+
+        self._automatic_concurrent_queries: bool = automatic_concurrent_queries
+        if max_automatic_concurrency is None:
+            max_automatic_concurrency = self.DEFAULT_AUTOMATIC_CONCURENCY
+        self._max_automatic_concurrency: int = max_automatic_concurrency
+        # used for automatic concurrent queries
+        self._thread_pool = None
 
     @property
     def rate_limit_delay(self):
@@ -887,6 +913,43 @@ class WebAPIClient:
         if is_dbg:
             logger.debug(dbg_msg)
         return r
+
+    def _call_groups(
+        self,
+        query: str,
+        args_groups: Collection[Dict[str, Any]],
+        **req_args,
+    ) -> Iterator[requests.models.Response]:
+        """Call the same endpoint multiple times with a series of arguments
+
+        The responses are yielded in any order.
+
+        Requests might be issued in parallel according to the value of
+        ``self._automatic_concurrent_queries``.
+
+        .. note:: 
+
+            Through ``self._rate_tokens``, the actual pace of requests will
+            comply with rate limit information provided by the server.
+
+        """
+        if len(args_groups) <= 1 or self._automatic_concurrent_queries:
+            for args in args_groups:
+                loop_args = req_args.copy()
+                loop_args.update(args)
+                yield self._call(query, **loop_args)
+        else:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=self._max_automatic_concurrency
+            ) as executor:
+                pending = []
+                for args in args_groups:
+                    loop_args = req_args.copy()
+                    loop_args.update(args)
+                    f = executor.submit(self._call, query, **loop_args)
+                    pending.append(f)
+                for future in concurrent.futures.as_completed(pending):
+                    yield future.result()
 
     def _get_snapshot(self, swhid: SWHIDish, typify: bool = True) -> Dict[str, Any]:
         """Analogous to self.snapshot(), but zipping through partial snapshots,
@@ -1131,14 +1194,12 @@ class WebAPIClient:
 
         """
         all_swh_ids = list(swhids)
-        chunks = _get_known_chunk(all_swh_ids)
-        all_results = []
-        for c in chunks:
-            ids = list(map(str, c))
-            r = self._call("known/", http_method="post", json=ids, **req_args)
-            all_results.append(r.json())
-        results = itertools.chain.from_iterable(e.items() for e in all_results)
-        return {CoreSWHID.from_string(k): v for k, v in results}
+        chunks = [list(map(str, c)) for c in _get_known_chunk(all_swh_ids)]
+        args_group = [{"json": ids} for ids in chunks]
+        req_args["http_method"] = "post"
+        responses = self._call_groups("known/", args_group, **req_args)
+        replies = (i for r in responses for i in r.json().items())
+        return {CoreSWHID.from_string(k): v for k, v in replies}
 
     def content_exists(self, swhid: SWHIDish, **req_args) -> bool:
         """Check if a content object exists in the archive

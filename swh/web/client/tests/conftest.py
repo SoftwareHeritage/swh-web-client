@@ -53,10 +53,15 @@ def web_api_mock(requests_mock):
     return requests_mock
 
 
-@pytest.fixture
-def web_api_client():
+@pytest.fixture(
+    params=[
+        {"automatic_concurrent_queries": False},
+        {"automatic_concurrent_queries": True},
+    ]
+)
+def web_api_client(request):
     # use the fake base API URL that matches API data
-    return WebAPIClient(api_url=API_URL)
+    return WebAPIClient(api_url=API_URL, **request.param)
 
 
 @pytest.fixture
