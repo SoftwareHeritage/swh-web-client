@@ -625,7 +625,7 @@ class WebAPIClient:
         request_retry=MAX_RETRY,
         retry_status=DEFAULT_RETRY_REASONS,
         use_rate_limit: bool = True,
-        automatic_concurrent_queries: bool = False,
+        automatic_concurrent_queries: bool = True,
         max_automatic_concurrency: Optional[int] = None,
     ):
         """Create a client for the Software Heritage Web API
@@ -927,7 +927,7 @@ class WebAPIClient:
         Requests might be issued in parallel according to the value of
         ``self._automatic_concurrent_queries``.
 
-        .. note:: 
+        .. note::
 
             Through ``self._rate_tokens``, the actual pace of requests will
             comply with rate limit information provided by the server.
