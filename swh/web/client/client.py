@@ -871,7 +871,7 @@ class WebAPIClient:
                 #
                 # If the `rate_token` tuple did not change, we are certain the
                 # "waiting-token" will be taken in account in the case a
-                # refresh happends while wait for an "available-request-token".
+                # refresh happens while waiting for an "available-request-token".
                 if tokens is self._rate_tokens:
                     # respect the rate limit enforced globally
                     #
