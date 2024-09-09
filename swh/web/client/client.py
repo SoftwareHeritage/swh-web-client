@@ -143,6 +143,23 @@ class _RateLimitInfo:
 
         self.free_token = 0
 
+    def _lt__(self, other) -> bool:
+        return (
+            self.reset_date,
+            self.start,
+            self.end,
+            self.remaining,
+            self.limit,
+            self.free_token,
+        ) < (
+            other.reset_date,
+            other.start,
+            other.end,
+            other.remaining,
+            other.limit,
+            other.free_token,
+        )
+
     def __repr__(self) -> str:
         r = "<RateLimitInfo start=%s, end=%s, budget=%d/%d, reset_date=%d>"
         r %= (self.start, self.end, self.remaining, self.limit, self.reset_date)
